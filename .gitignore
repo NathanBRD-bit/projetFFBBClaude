@@ -39,3 +39,6 @@ Thumbs.db
 # Photos de notes manuscrites — hors livrable
 20260914_145941.jpg
 20260914_145948.jpg
+
+# Claude Code — réglages locaux (non partagés)
+.claude/settings.local.json
