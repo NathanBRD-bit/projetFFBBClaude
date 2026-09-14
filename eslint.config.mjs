@@ -14,6 +14,37 @@ const couchesInterditesAuDomaine = [
   "./src/infrastructure",
   "./src/actions",
   "./src/composants",
+  "./src/auth",
+];
+
+/**
+ * Modules d'entrées/sorties interdits au domaine. `src/domaine/` est censé être
+ * testable sans réseau, sans disque et sans base : la règle doit le faire respecter,
+ * pas seulement le documenter. `node:crypto`, `node:util` et `node:path` restent
+ * autorisés : ce sont des calculs purs (empreintes, formatage), pas des I/O.
+ */
+const modulesIoInterdits = [
+  "fs",
+  "fs/*",
+  "node:fs",
+  "node:fs/*",
+  "child_process",
+  "node:child_process",
+  "http",
+  "https",
+  "node:http",
+  "node:https",
+  "net",
+  "dns",
+  "node:net",
+  "node:dns",
+  "node:dgram",
+  "node:worker_threads",
+  "node:cluster",
+  "pg",
+  "postgres",
+  "@neondatabase/serverless",
+  "@vercel/blob",
 ];
 
 const messageDomainePur =
@@ -106,6 +137,8 @@ const eslintConfig = defineConfig([
                 "@/infrastructure/*",
                 "@/actions/*",
                 "@/composants/*",
+                "@/auth/*",
+                ...modulesIoInterdits,
               ],
               message: messageDomainePur,
             },

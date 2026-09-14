@@ -30,12 +30,19 @@ function verifierScore(valeur: number, cote: "domicile" | "extérieur"): void {
  * @throws RangeError si un score n'est pas un entier positif ou nul.
  */
 export function formaterScore(domicile: number | null, exterieur: number | null): string {
+  // La validation passe avant le court-circuit sur `null` : sinon une valeur
+  // corrompue d'un côté (-1, NaN) s'afficherait comme un banal « match non joué »
+  // dès que l'autre score est inconnu, et l'anomalie resterait invisible.
+  if (domicile !== null) {
+    verifierScore(domicile, "domicile");
+  }
+  if (exterieur !== null) {
+    verifierScore(exterieur, "extérieur");
+  }
+
   if (domicile === null || exterieur === null) {
     return SCORE_INCONNU;
   }
-
-  verifierScore(domicile, "domicile");
-  verifierScore(exterieur, "extérieur");
 
   return `${String(domicile)}${SEPARATEUR}${String(exterieur)}`;
 }

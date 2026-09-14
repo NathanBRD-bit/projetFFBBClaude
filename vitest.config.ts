@@ -18,7 +18,12 @@ export default defineConfig({
         test: {
           name: "unitaires",
           environment: "node",
-          include: ["tests/unitaires/**/*.test.ts", "tests/integration/**/*.test.ts"],
+          // Filet de sécurité : tout fichier de test qui n'est ni un test de
+          // composant ni un test e2e est exécuté ici, quels que soient son dossier
+          // et son extension. Un `include` verrouillé sur `tests/unitaires/**/*.test.ts`
+          // laissait tomber en silence un test mal rangé ou nommé `.test.tsx`.
+          include: ["tests/**/*.test.{ts,tsx}"],
+          exclude: ["tests/composants/**", "tests/e2e/**", "tests/garde-fous/**"],
         },
       },
       {
@@ -26,7 +31,7 @@ export default defineConfig({
         test: {
           name: "composants",
           environment: "jsdom",
-          include: ["tests/composants/**/*.test.tsx"],
+          include: ["tests/composants/**/*.test.{ts,tsx}"],
         },
       },
     ],

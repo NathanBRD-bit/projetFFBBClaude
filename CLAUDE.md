@@ -20,8 +20,9 @@ Next.js (App Router) + TypeScript strict, Tailwind v4, Vitest, Playwright. Node 
 ## Projet
 
 - Équipe : Eugène, Mathis, Raphaël, Nathan, Léane.
-- **Sujet non arrêté** : ne rien considérer comme acquis côté contenu tant que la Conception n'a pas tranché
-  le use case, le périmètre et le public visé.
+- **Sujet** : le site du club de basket Stade Olympique Candé Loire (SOCL, code FFBB `PDL0049077`) —
+  matchs à venir, résultats et historique synchronisés depuis la FFBB, plus des articles publiés depuis un
+  back-office. Couleurs du club : violet `#5B1B40`, jaune `#F8E71B`.
 - **Objectif : un site en production sur Vercel**, pas une maquette. Toute décision (stack, dépendance,
   contenu) se juge à cette aune : est-ce que ça tient en ligne et reste maintenable par l'équipe ?
 - Conséquence sur la stack : statique ou Node. Pas de PHP, pas de serveur applicatif long, pas d'état sur le
