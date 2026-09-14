@@ -5,24 +5,24 @@ ce qui est utile à **chaque** session.
 
 ## Commandes
 
-Stack non choisie (phase Conception en cours). À remplir dès qu'elle l'est — c'est la section la plus utile
-du fichier.
+Next.js (App Router) + TypeScript strict, Tailwind v4, Vitest, Playwright. Node 22.
 
-| Action | Commande |
-|---|---|
-| Installer les dépendances | _à définir_ |
-| Lancer le serveur de dev | _à définir_ |
-| Lancer toute la suite de tests | _à définir_ |
-| Lancer **un seul** test | _à définir_ |
-| Rapport de couverture | _à définir_ |
-| Lint / format | _à définir_ |
-| Build de production | _à définir_ |
+| Action                         | Commande                                                      |
+| ------------------------------ | ------------------------------------------------------------- |
+| Installer les dépendances      | `npm ci`                                                      |
+| Lancer le serveur de dev       | `npm run dev` (http://localhost:3000)                         |
+| Lancer toute la suite de tests | `npm test` puis `npm run test:e2e`                            |
+| Lancer **un seul** test        | `npx vitest run tests/unitaires/score.test.ts -t "affiche 0"` |
+| Rapport de couverture          | `npm run test:couverture`                                     |
+| Lint / format                  | `npm run lint` · `npm run format` · `npm run format:check`    |
+| Build de production            | `npm run build` (types : `npm run types`)                     |
 
 ## Projet
 
 - Équipe : Eugène, Mathis, Raphaël, Nathan, Léane.
-- **Sujet non arrêté** : ne rien considérer comme acquis côté contenu tant que la Conception n'a pas tranché
-  le use case, le périmètre et le public visé.
+- **Sujet** : le site du club de basket Stade Olympique Candé Loire (SOCL, code FFBB `PDL0049077`) —
+  matchs à venir, résultats et historique synchronisés depuis la FFBB, plus des articles publiés depuis un
+  back-office. Couleurs du club : violet `#5B1B40`, jaune `#F8E71B`.
 - **Objectif : un site en production sur Vercel**, pas une maquette. Toute décision (stack, dépendance,
   contenu) se juge à cette aune : est-ce que ça tient en ligne et reste maintenable par l'équipe ?
 - Conséquence sur la stack : statique ou Node. Pas de PHP, pas de serveur applicatif long, pas d'état sur le
@@ -46,7 +46,7 @@ Choix des agents et déroulé complet : `docs/process.md`.
 - **Tests écrits avec la tâche**, jamais repoussés à une tâche « tests » finale. Couverture ≥ 80 % sur la
   logique métier, 100 % sur le critique (validation d'entrées, auth, données utilisateur).
 - **Un bug corrigé = un test qui le reproduit**, ajouté avant le correctif.
-- **Une tâche n'est finie que si** lint et tests passent *et* que le rendu réel a été vu (skill `run` en
+- **Une tâche n'est finie que si** lint et tests passent _et_ que le rendu réel a été vu (skill `run` en
   local, puis URL de preview Vercel) — pas seulement le diff relu.
 - **Rapport honnête** : un test qui échoue, une étape sautée, une vérification non faite se disent
   explicitement. Jamais de « c'est bon » sur du non-vérifié.

@@ -8,7 +8,7 @@ description: Recetter une tâche ou une mise en production — checklist de vér
 Dérouler cette checklist **sur le rendu réel** — local via la skill `run`, ou sur l'URL de preview Vercel.
 Lire le diff ne remplace pas la recette.
 
-Reporter honnêtement : chaque point est *vérifié*, *échoué* ou *non vérifié*. Ne jamais cocher par défaut.
+Reporter honnêtement : chaque point est _vérifié_, _échoué_ ou _non vérifié_. Ne jamais cocher par défaut.
 
 ## 1. Fonctionnel
 

@@ -26,14 +26,14 @@ En positif :
 
 À mettre en place dès que la stack est choisie, pour que ces règles ne dépendent plus de la vigilance :
 
-| Règle | Outil |
-|---|---|
-| `catch` vide | ESLint `no-empty` (`allowEmptyCatch: false`) |
-| comparaisons lâches | ESLint `eqeqeq` |
-| promesses non gérées | ESLint `no-floating-promises` |
-| types laxistes | `tsconfig` `strict`, `noUncheckedIndexedAccess` |
-| lint avant commit | hook pre-commit |
-| warnings bloquants | `--max-warnings=0` en CI |
+| Règle                | Outil                                           |
+| -------------------- | ----------------------------------------------- |
+| `catch` vide         | ESLint `no-empty` (`allowEmptyCatch: false`)    |
+| comparaisons lâches  | ESLint `eqeqeq`                                 |
+| promesses non gérées | ESLint `no-floating-promises`                   |
+| types laxistes       | `tsconfig` `strict`, `noUncheckedIndexedAccess` |
+| lint avant commit    | hook pre-commit                                 |
+| warnings bloquants   | `--max-warnings=0` en CI                        |
 
 ## Performance
 
@@ -47,5 +47,5 @@ En positif :
 
 - Le `README.md` doit permettre à un nouvel arrivant d'installer et lancer le projet sans poser de question.
 - Toute décision structurante (stack, hébergement, service externe) est écrite avec ses alternatives
-  écartées : on doit pouvoir comprendre plus tard *pourquoi*, pas seulement *quoi*.
+  écartées : on doit pouvoir comprendre plus tard _pourquoi_, pas seulement _quoi_.
 - Les commentaires expliquent l'intention, pas la syntaxe. Un commentaire qui paraphrase le code est du bruit.

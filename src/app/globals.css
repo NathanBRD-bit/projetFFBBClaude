@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Palette minimale du placeholder. La charte réelle du club viendra avec le design. */
+:root {
+  --fond: #ffffff;
+  --encre: #171717;
+  --encre-douce: #525252;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #0a0a0a;
+    --encre: #ededed;
+    --encre-douce: #a3a3a3;
+  }
+}
+
+@theme inline {
+  --color-fond: var(--fond);
+  --color-encre: var(--encre);
+  --color-encre-douce: var(--encre-douce);
+}

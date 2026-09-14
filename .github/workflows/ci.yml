@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Une PR qui reçoit un nouveau commit annule le run précédent : pas de file d'attente inutile.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Le job ne fait que lire le dépôt : on ne lui laisse pas le jeton par défaut en écriture.
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    name: Format, lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` et non `npm install` : installation reproductible depuis package-lock.json.
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Chaque étape est bloquante. Aucun `continue-on-error`, aucun `|| true` :
+      # une étape rouge doit arrêter le job (docs/qualite.md).
+      - name: Vérifier le formatage
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Vérifier les types
+        run: npm run types
+
+      - name: Tests unitaires et de composants avec couverture
+        run: npm run test:couverture
+
+      - name: Build de production
+        run: npm run build
+
+  e2e:
+    name: Tests e2e et accessibilité
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Installer Chromium pour Playwright
+        run: npx playwright install --with-deps chromium
+
+      # Bloquant, comme le reste : le test e2e contient l'assertion axe-core, une
+      # régression d'accessibilité ne doit pas pouvoir être mergée au vert.
+      - name: Tests e2e
+        run: npm run test:e2e
+
+      - name: Conserver le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 7
+
+# À venir :
+# - T03 : service Postgres (`services: postgres:...`) et migrations Drizzle, pour les
+#   tests d'intégration qui touchent la base.
