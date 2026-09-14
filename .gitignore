@@ -11,6 +11,10 @@ out/
 .astro/
 .cache/
 
+# TypeScript — fichiers régénérés à chaque build
+next-env.d.ts
+*.tsbuildinfo
+
 # Vercel
 .vercel
 
@@ -22,6 +26,9 @@ out/
 # Tests / couverture
 coverage/
 .nyc_output/
+playwright-report/
+playwright/.cache/
+test-results/
 
 # Logs
 *.log
@@ -42,3 +49,6 @@ Thumbs.db
 
 # Claude Code — réglages locaux (non partagés)
 .claude/settings.local.json
+
+# Certificats locaux
+*.pem
