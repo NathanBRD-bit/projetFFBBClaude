@@ -1,0 +1,13 @@
+# Généré ou installé
+node_modules/
+.next/
+out/
+build/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+next-env.d.ts
+
+# Contre-exemples de garde-fous : formatés à la main pour rester lisibles tels quels.
+tests/garde-fous/*.exemple.ts
