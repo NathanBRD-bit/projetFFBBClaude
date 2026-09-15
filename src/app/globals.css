@@ -1,22 +1,73 @@
 @import "tailwindcss";
 
-/* Palette minimale du placeholder. La charte réelle du club viendra avec le design. */
+/*
+ * Charte graphique SOCL Basket.
+ *
+ * Les deux couleurs sont relevées sur le logo officiel du club : le violet du
+ * bandeau et du texte en arc, le jaune du ballon. Tous les ratios ci-dessous ont
+ * été mesurés, pas estimés — voir docs/charte-graphique.md.
+ *
+ * RÈGLE ABSOLUE : le jaune ne sert JAMAIS de couleur de texte sur fond clair
+ * (1,28:1 sur blanc, illisible). Il est réservé aux aplats, aux bordures, aux
+ * accents sur violet (12,32:1) et aux fonds de boutons avec texte violet (9,81:1).
+ */
 :root {
-  --fond: #ffffff;
-  --encre: #171717;
-  --encre-douce: #525252;
-}
+  color-scheme: light;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fond: #0a0a0a;
-    --encre: #ededed;
-    --encre-douce: #a3a3a3;
-  }
+  /* Couleurs du club */
+  --violet: #5b1b40; /* 12,53:1 sur blanc — AAA */
+  --violet-fonce: #3e1230; /* 15,74:1 sur blanc — AAA, fonds d'en-tête et de pied */
+  --violet-voile: #f3ebf0; /* aplat très clair, jamais du texte */
+  --jaune: #f8e71b; /* accent uniquement */
+
+  /* Neutres */
+  --fond: #ffffff;
+  --fond-doux: #faf6f8;
+  --encre: #1f1420; /* 17,81:1 sur blanc — AAA */
+  --encre-douce: #6b5c6a; /* 6,24:1 sur blanc — AA, texte secondaire */
+  --bordure: #e8dfe5;
+
+  /* Statuts de match */
+  --victoire: #1b6b45; /* 6,49:1 sur blanc — AA */
+  --defaite: #a3182b; /* 7,71:1 sur blanc — AAA */
 }
 
 @theme inline {
+  --color-violet: var(--violet);
+  --color-violet-fonce: var(--violet-fonce);
+  --color-violet-voile: var(--violet-voile);
+  --color-jaune: var(--jaune);
   --color-fond: var(--fond);
+  --color-fond-doux: var(--fond-doux);
   --color-encre: var(--encre);
   --color-encre-douce: var(--encre-douce);
+  --color-bordure: var(--bordure);
+  --color-victoire: var(--victoire);
+  --color-defaite: var(--defaite);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Le focus doit rester visible partout : c'est la base de la navigation clavier. */
+:focus-visible {
+  outline: 3px solid var(--jaune);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Sur fond violet, le jaune n'est plus assez contrasté comme anneau : on repasse au blanc. */
+.sur-violet :focus-visible {
+  outline-color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

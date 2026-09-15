@@ -1,12 +1,55 @@
-export default function PageAccueil() {
+import { AccueilContenu, type RencontreAffichee } from "@/composants/public/accueil-contenu";
+import { dernieresRencontresJouees, prochainesRencontres } from "@/domaine/rencontres";
+import type { Equipe, Rencontre } from "@/domaine/types";
+import { listerArticles, listerEquipes, listerRencontres } from "@/infrastructure/donnees/depot";
+
+/**
+ * Le « prochain match » se calcule par rapport à l'heure courante : une page figée
+ * au moment du build finirait par mettre en avant un match déjà joué. Une heure de
+ * fraîcheur suffit — le calendrier FFBB ne bouge pas plus vite que ça.
+ */
+export const revalidate = 3600;
+
+/**
+ * Rattache une rencontre à son équipe.
+ *
+ * Une rencontre orpheline est une incohérence de données, pas un cas d'affichage :
+ * on échoue bruyamment plutôt que de publier une carte de match sans équipe.
+ */
+function rattacher(
+  rencontre: Rencontre,
+  equipesParId: ReadonlyMap<string, Equipe>,
+): RencontreAffichee {
+  const equipe = equipesParId.get(rencontre.equipeId);
+  if (equipe === undefined) {
+    throw new Error(
+      `Rencontre « ${rencontre.id} » rattachée à une équipe inconnue « ${rencontre.equipeId} ».`,
+    );
+  }
+  return { rencontre, equipe };
+}
+
+export default async function PageAccueil() {
+  // Trois lectures indépendantes, lancées ensemble plutôt qu'en cascade.
+  const [equipes, articles, rencontres] = await Promise.all([
+    listerEquipes(),
+    listerArticles(3),
+    listerRencontres(),
+  ]);
+
+  // Une seule passe pour indexer les équipes : pas un appel au dépôt par rencontre.
+  const equipesParId = new Map(equipes.map((equipe) => [equipe.id, equipe]));
+
+  const [premiere] = prochainesRencontres(rencontres, new Date(), 1);
+
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-4 px-6 py-16">
-      <p className="text-sm font-medium tracking-widest text-encre-douce uppercase">SOCL Basket</p>
-      <h1 className="text-3xl font-bold sm:text-4xl">Le site du club est en construction</h1>
-      <p className="text-base text-encre-douce">
-        Les équipes, le calendrier et les résultats arriveront ici prochainement. Merci de votre
-        patience.
-      </p>
-    </main>
+    <AccueilContenu
+      prochain={premiere === undefined ? null : rattacher(premiere, equipesParId)}
+      derniers={dernieresRencontresJouees(rencontres, 3).map((rencontre) =>
+        rattacher(rencontre, equipesParId),
+      )}
+      articles={articles}
+      equipes={equipes}
+    />
   );
 }

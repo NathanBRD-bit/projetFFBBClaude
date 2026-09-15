@@ -2,13 +2,15 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 test.describe("Page d'accueil", () => {
-  test("affiche le titre du club et le message de construction", async ({ page }) => {
+  test("affiche le titre du club et les sections de la page", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page).toHaveTitle("SOCL Basket");
+    await expect(page).toHaveTitle("SOCL Basket — Stade Olympique Candé Loiré");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      /le site du club est en construction/i,
+      /le basket à candé et à loiré/i,
     );
+    await expect(page.getByRole("region", { name: "Le prochain match" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Les dernières actualités" })).toBeVisible();
   });
 
   test("ne présente aucune violation d'accessibilité critique ou sérieuse", async ({ page }) => {
