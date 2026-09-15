@@ -44,6 +44,7 @@ const modulesIoInterdits = [
   "pg",
   "postgres",
   "@neondatabase/serverless",
+  "@electric-sql/pglite",
   "@vercel/blob",
 ];
 
