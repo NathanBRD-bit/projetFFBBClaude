@@ -32,6 +32,15 @@ Pour les tests de bout en bout, installer une fois le navigateur utilisé par Pl
 npx playwright install --with-deps chromium
 ```
 
+Les tests d'intégration n'ont **rien à installer** : ils tournent sur PGlite, un Postgres compilé en
+WebAssembly qui s'exécute dans Node. Une base Postgres (Neon) n'est nécessaire que pour lancer l'application
+elle-même — renseigner `DATABASE_URL`, puis :
+
+```bash
+npm run bdd:migrer         # applique les migrations de drizzle/
+npm run bdd:semer          # jeu de données de démonstration (idempotent)
+```
+
 ## Commandes
 
 | Action                           | Commande                                                      |
@@ -41,11 +50,15 @@ npx playwright install --with-deps chromium
 | Tests en mode surveillance       | `npm run test:watch`                                          |
 | Un seul test                     | `npx vitest run tests/unitaires/score.test.ts -t "affiche 0"` |
 | Couverture                       | `npm run test:couverture`                                     |
+| Tests d'intégration (base)       | `npm run test:integration`                                    |
 | Tests de bout en bout            | `npm run test:e2e`                                            |
 | Lint                             | `npm run lint` (correction : `npm run lint:corriger`)         |
 | Formatage                        | `npm run format` (vérification : `npm run format:check`)      |
 | Vérification des types           | `npm run types`                                               |
 | Build de production              | `npm run build`                                               |
+| Générer une migration Drizzle    | `npm run bdd:generer`                                         |
+| Appliquer les migrations         | `npm run bdd:migrer`                                          |
+| Peupler la base de démonstration | `npm run bdd:semer`                                           |
 
 ## Organisation du code
 
@@ -71,6 +84,7 @@ Les garde-fous du linter et la façon de vérifier qu'ils échouent vraiment son
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | Branches, commits, pull requests, définition de « terminé » |
 | [docs/process.md](docs/process.md)                       | Méthode de travail en cinq phases                           |
 | [docs/qualite.md](docs/qualite.md)                       | Standards de code, performance, documentation               |
+| [docs/modele-donnees.md](docs/modele-donnees.md)         | Tables, contraintes et raisons de chaque garde-fou          |
 | [docs/deploiement.md](docs/deploiement.md)               | Contraintes Vercel, flux de déploiement, rollback           |
 | [tests/garde-fous/README.md](tests/garde-fous/README.md) | Preuve que les règles du linter font échouer la CI          |
 

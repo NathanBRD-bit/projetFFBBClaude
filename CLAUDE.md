@@ -7,15 +7,17 @@ ce qui est utile à **chaque** session.
 
 Next.js (App Router) + TypeScript strict, Tailwind v4, Vitest, Playwright. Node 22.
 
-| Action                         | Commande                                                      |
-| ------------------------------ | ------------------------------------------------------------- |
-| Installer les dépendances      | `npm ci`                                                      |
-| Lancer le serveur de dev       | `npm run dev` (http://localhost:3000)                         |
-| Lancer toute la suite de tests | `npm test` puis `npm run test:e2e`                            |
-| Lancer **un seul** test        | `npx vitest run tests/unitaires/score.test.ts -t "affiche 0"` |
-| Rapport de couverture          | `npm run test:couverture`                                     |
-| Lint / format                  | `npm run lint` · `npm run format` · `npm run format:check`    |
-| Build de production            | `npm run build` (types : `npm run types`)                     |
+| Action                         | Commande                                                           |
+| ------------------------------ | ------------------------------------------------------------------ |
+| Installer les dépendances      | `npm ci`                                                           |
+| Lancer le serveur de dev       | `npm run dev` (http://localhost:3000)                              |
+| Lancer toute la suite de tests | `npm test` puis `npm run test:e2e`                                 |
+| Tests d'intégration (base)     | `npm run test:integration` (PGlite, aucun Postgres à installer)    |
+| Lancer **un seul** test        | `npx vitest run tests/unitaires/score.test.ts -t "affiche 0"`      |
+| Rapport de couverture          | `npm run test:couverture`                                          |
+| Lint / format                  | `npm run lint` · `npm run format` · `npm run format:check`         |
+| Build de production            | `npm run build` (types : `npm run types`)                          |
+| Base de données                | `npm run bdd:generer` · `npm run bdd:migrer` · `npm run bdd:semer` |
 
 ## Projet
 
