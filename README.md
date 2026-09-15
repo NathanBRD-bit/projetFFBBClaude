@@ -59,6 +59,7 @@ npm run bdd:semer          # jeu de données de démonstration (idempotent)
 | Générer une migration Drizzle    | `npm run bdd:generer`                                         |
 | Appliquer les migrations         | `npm run bdd:migrer`                                          |
 | Peupler la base de démonstration | `npm run bdd:semer`                                           |
+| Recapturer les fixtures FFBB     | `npx tsx scripts/capturer-fixtures-ffbb.ts` (à la main)       |
 
 ## Organisation du code
 
@@ -86,6 +87,7 @@ Les garde-fous du linter et la façon de vérifier qu'ils échouent vraiment son
 | [docs/qualite.md](docs/qualite.md)                       | Standards de code, performance, documentation               |
 | [docs/modele-donnees.md](docs/modele-donnees.md)         | Tables, contraintes et raisons de chaque garde-fou          |
 | [docs/deploiement.md](docs/deploiement.md)               | Contraintes Vercel, flux de déploiement, rollback           |
+| [docs/adr/](docs/adr/)                                   | Décisions d'architecture (clé d'idempotence FFBB…)          |
 | [tests/garde-fous/README.md](tests/garde-fous/README.md) | Preuve que les règles du linter font échouer la CI          |
 
 ## Qualité

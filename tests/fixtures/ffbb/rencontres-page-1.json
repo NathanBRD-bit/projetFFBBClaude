@@ -1,0 +1,262 @@
+{
+  "hits": [
+    {
+      "id": "200000014681472",
+      "date": "2026-09-19",
+      "date_rencontre": "2026-09-19T11:30:00",
+      "joue": false,
+      "nomEquipe1": "CHAZE SUR ARGOS - 2",
+      "nomEquipe2": "STADE OLYMPIQUE CANDE LOIRE BASKET",
+      "numeroJournee": "1",
+      "resultatEquipe1": null,
+      "resultatEquipe2": null,
+      "pratique": "5x5",
+      "uniqueKey": "200000003058340_1_3",
+      "url_competition": "/ligues/pdl/comites/0049/competitions/dmu11-4/match/200000014681472",
+      "handicap1": null,
+      "handicap2": null,
+      "rematch_videos": [],
+      "officiels": [],
+      "gsId": null,
+      "competitionId": {
+        "id": "200000002898993",
+        "nom": "Départementale masculine U11 - Division 4",
+        "competition_origine_nom": "Départementale masculine U11 - Division 4",
+        "code": "DMU11-4",
+        "slug": "dmu11-4",
+        "liveStat": false,
+        "sexe": "Masculin",
+        "typeCompetition": "Championnat",
+        "pro": false,
+        "logo": null,
+        "categorie": {
+          "code": "U11",
+          "libelle": "U11",
+          "ordre": 3
+        },
+        "typeCompetitionGenerique": {
+          "logo": {
+            "id": "44f72122-df19-4e0f-8eae-0b42123abe22",
+            "gradient_color": "#00B5EA"
+          }
+        },
+        "competition_origine": {
+          "id": "200000002898993",
+          "code": "DMU11-4",
+          "slug": "dmu11-4",
+          "nom": "Départementale masculine U11 - Division 4",
+          "typeCompetition": "DIV",
+          "categorie": {
+            "ordre": 3
+          },
+          "typeCompetitionGenerique": {
+            "logo": {
+              "id": "44f72122-df19-4e0f-8eae-0b42123abe22"
+            }
+          }
+        },
+        "nomExtended": "200000002898993|Départementale masculine U11 - Division 4|44f72122-df19-4e0f-8eae-0b42123abe22|DIV|Masculin|3|MAINE-ET-LOIRE|0049|Départemental|4"
+      },
+      "idOrganismeEquipe1": {
+        "id": "8847",
+        "nom": "CHAZE SUR ARGOS",
+        "nom_simple": null,
+        "code": "PDL0049040",
+        "nomClubPro": "",
+        "logo": null
+      },
+      "idOrganismeEquipe2": {
+        "id": "200000002677672",
+        "nom": "STADE OLYMPIQUE CANDE LOIRE BASKET",
+        "nom_simple": null,
+        "code": "PDL0049077",
+        "nomClubPro": "",
+        "logo": null
+      },
+      "idPoule": {
+        "id": "200000003058340",
+        "nom": "D 4A"
+      },
+      "saison": {
+        "code": "26-27"
+      },
+      "salle": {
+        "id": "1001000139",
+        "libelle": "SALLE DE SPORT - LA CHAZEENNE",
+        "adresse": "Route de Vern",
+        "adresseComplement": "",
+        "cartographie": {
+          "ville": "Chazé-sur-Argos",
+          "codePostal": "49500",
+          "coordonnees": {
+            "type": "Point",
+            "coordinates": [-0.86751, 47.61002]
+          }
+        }
+      },
+      "idEngagementEquipe1": {
+        "id": "200000005362440",
+        "nomUsuel": "",
+        "logo": null
+      },
+      "idEngagementEquipe2": {
+        "id": "200000005362441",
+        "nomUsuel": "",
+        "logo": null
+      },
+      "_geo": {
+        "lat": 47.61002,
+        "lng": -0.86751
+      },
+      "date_timestamp": 1789768800000,
+      "date_rencontre_timestamp": 1789810200000,
+      "creation_timestamp": 1787907254000,
+      "dateSaisieResultat_timestamp": null,
+      "modification_timestamp": 1788266293000,
+      "thumbnail": null,
+      "organisateur": {
+        "id": "2074",
+        "code": "0049",
+        "nom": "COMITE DU MAINE-ET-LOIRE DE BASKET-BALL",
+        "type": "C",
+        "organisme_id_pere": {
+          "code": "PDL"
+        }
+      },
+      "niveau": "Départemental",
+      "niveau_nb": "4"
+    },
+    {
+      "id": "200000014681473",
+      "date": "2026-09-19",
+      "date_rencontre": "2026-09-19T11:30:00",
+      "joue": false,
+      "nomEquipe1": "CHAZE SUR ARGOS - 2",
+      "nomEquipe2": "STADE OLYMPIQUE CANDE LOIRE BASKET",
+      "numeroJournee": "2",
+      "resultatEquipe1": null,
+      "resultatEquipe2": null,
+      "pratique": "5x5",
+      "uniqueKey": "200000003058340_1_4",
+      "url_competition": "/ligues/pdl/comites/0049/competitions/dmu11-4/match/200000014681473",
+      "handicap1": null,
+      "handicap2": null,
+      "rematch_videos": [],
+      "officiels": [],
+      "gsId": null,
+      "competitionId": {
+        "id": "200000002898993",
+        "nom": "Départementale masculine U11 - Division 4",
+        "competition_origine_nom": "Départementale masculine U11 - Division 4",
+        "code": "DMU11-4",
+        "slug": "dmu11-4",
+        "liveStat": false,
+        "sexe": "Masculin",
+        "typeCompetition": "Championnat",
+        "pro": false,
+        "logo": null,
+        "categorie": {
+          "code": "U11",
+          "libelle": "U11",
+          "ordre": 3
+        },
+        "typeCompetitionGenerique": {
+          "logo": {
+            "id": "44f72122-df19-4e0f-8eae-0b42123abe22",
+            "gradient_color": "#00B5EA"
+          }
+        },
+        "competition_origine": {
+          "id": "200000002898993",
+          "code": "DMU11-4",
+          "slug": "dmu11-4",
+          "nom": "Départementale masculine U11 - Division 4",
+          "typeCompetition": "DIV",
+          "categorie": {
+            "ordre": 3
+          },
+          "typeCompetitionGenerique": {
+            "logo": {
+              "id": "44f72122-df19-4e0f-8eae-0b42123abe22"
+            }
+          }
+        },
+        "nomExtended": "200000002898993|Départementale masculine U11 - Division 4|44f72122-df19-4e0f-8eae-0b42123abe22|DIV|Masculin|3|MAINE-ET-LOIRE|0049|Départemental|4"
+      },
+      "idOrganismeEquipe1": {
+        "id": "8847",
+        "nom": "CHAZE SUR ARGOS",
+        "nom_simple": null,
+        "code": "PDL0049040",
+        "nomClubPro": "",
+        "logo": null
+      },
+      "idOrganismeEquipe2": {
+        "id": "200000002677672",
+        "nom": "STADE OLYMPIQUE CANDE LOIRE BASKET",
+        "nom_simple": null,
+        "code": "PDL0049077",
+        "nomClubPro": "",
+        "logo": null
+      },
+      "idPoule": {
+        "id": "200000003058340",
+        "nom": "D 4A"
+      },
+      "saison": {
+        "code": "26-27"
+      },
+      "salle": {
+        "id": "1001000139",
+        "libelle": "SALLE DE SPORT - LA CHAZEENNE",
+        "adresse": "Route de Vern",
+        "adresseComplement": "",
+        "cartographie": {
+          "ville": "Chazé-sur-Argos",
+          "codePostal": "49500",
+          "coordonnees": {
+            "type": "Point",
+            "coordinates": [-0.86751, 47.61002]
+          }
+        }
+      },
+      "idEngagementEquipe1": {
+        "id": "200000005362440",
+        "nomUsuel": "",
+        "logo": null
+      },
+      "idEngagementEquipe2": {
+        "id": "200000005362441",
+        "nomUsuel": "",
+        "logo": null
+      },
+      "_geo": {
+        "lat": 47.61002,
+        "lng": -0.86751
+      },
+      "date_timestamp": 1789768800000,
+      "date_rencontre_timestamp": 1789810200000,
+      "creation_timestamp": 1787907254000,
+      "dateSaisieResultat_timestamp": null,
+      "modification_timestamp": 1788266293000,
+      "thumbnail": null,
+      "organisateur": {
+        "id": "2074",
+        "code": "0049",
+        "nom": "COMITE DU MAINE-ET-LOIRE DE BASKET-BALL",
+        "type": "C",
+        "organisme_id_pere": {
+          "code": "PDL"
+        }
+      },
+      "niveau": "Départemental",
+      "niveau_nb": "4"
+    }
+  ],
+  "query": "",
+  "processingTimeMs": 1,
+  "limit": 2,
+  "offset": 0,
+  "estimatedTotalHits": 5,
+  "requestUid": "01a0a4ab-364a-7e23-9b10-2d45b00e776d"
+}

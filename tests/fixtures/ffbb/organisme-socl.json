@@ -1,0 +1,86 @@
+{
+  "hits": [
+    {
+      "id": "200000002677672",
+      "adresse": "6 RUE DE LA LIBERATION",
+      "adresseClubPro": null,
+      "code": "PDL0049077",
+      "mail": null,
+      "nom": "STADE OLYMPIQUE CANDE LOIRE BASKET",
+      "nomClubPro": "",
+      "telephone": null,
+      "type": "Groupement",
+      "urlSiteWeb": "",
+      "nom_simple": null,
+      "dateAffiliation": null,
+      "saison_en_cours": true,
+      "url_competition": "/ligues/pdl/comites/0049/clubs/pdl0049077",
+      "saison": null,
+      "code_emploi": "code-emploi-factice-pour-les-tests",
+      "offresPratiques": [
+        "Compétition 3x3",
+        "Compétition 5x5",
+        "Compétition MiniBasket",
+        "Loisir 3x3",
+        "Loisir 5x5"
+      ],
+      "labellisation": [],
+      "cartographie": {
+        "adresse": "Rue de la Libération",
+        "codePostal": "49440",
+        "coordonnees": {
+          "type": "Point",
+          "coordinates": [-0.97999, 47.61458]
+        },
+        "date_created": null,
+        "date_updated": null,
+        "id": "G-200000002677672",
+        "latitude": 47.61458,
+        "longitude": -0.97999,
+        "title": "",
+        "ville": "Loiré",
+        "status": "draft"
+      },
+      "commune": {
+        "libelle": "LOIRE",
+        "codePostal": "49440",
+        "departement": "Maine-et-loire "
+      },
+      "communeClubPro": null,
+      "organisme_id_pere": {
+        "id": "2074",
+        "nom": "COMITE DU MAINE-ET-LOIRE DE BASKET-BALL",
+        "adresse": "",
+        "code": "0049",
+        "commune": "18608",
+        "nom_simple": "MAINE-ET-LOIRE",
+        "type": "Comité",
+        "organisme_id_pere": {
+          "id": "1489",
+          "nom": "LIGUE REGIONALE DES PAYS-DE-LA-LOIRE DE BASKET-BALL",
+          "code": "PDL",
+          "type": "L"
+        },
+        "ligueCode": "1489"
+      },
+      "type_association": {
+        "code": "K",
+        "libelle": "Club"
+      },
+      "logo": null,
+      "_geo": {
+        "lat": 47.61458,
+        "lng": -0.97999
+      },
+      "thumbnail": null,
+      "engagements_noms": "STADE OLYMPIQUE CANDE LOIRE BASKET",
+      "engagements_codes": "DFU18-4 | Départemental féminin U18 - Division 4|DFU15-4 | Départemental féminin U15 - Division 4|DF4 | Départementale féminine seniors - Division 4|DFVE-2 | Départemental féminin Vétérans - Division 2|DMU9-6 | Départemental masculin U9 - Division 6|DMU11-6 | Départemental masculin U11 - Division 6|32CHAF | 1/32 CHALLENGE DE L'ANJOU FEMININE|DFVE-3 | Départemental féminin Vétérans - Division 3|DMVE | Départemental masculin Vétérans|DMU11-4-P2 | Départemental masculin U11 - Division 4 - Phase 2|DMU9-4-P2 | Départemental masculin U9 - Division 4 - Phase 2|DFU9-4-P2 | Départemental féminin U9 - Division 4 - Phase 2|DMU9-3-P2-P2 | Départemental masculin U9 - Division 3 - Phase 2 - Phase 2|DMU11-3-P2-P2 | Départemental masculin U11 - Division 3 - Phase 2 - Phase 2|DFU15-3-P2 | Départemental féminin U15 - Division 3 - Phase 2|DFU9-3-P2-P2 | Départemental féminin U9 - Division 3 - Phase 2 - Phase 2|DF4-P2 | Départementale féminine seniors - Division 4 - Phase 2|DMU11-3 | Départementale masculine U11 - Division 3|DMU13-3 | Départementale masculine U13 - Division 3| Départementale féminine U18 - Division 4|DM5 | Départementale masculine seniors - Division 5|32CHAM | 1-32 CHALLENGE DE L'ANJOU MASCULIN| 1-32 CHALLENGE DE L'ANJOU FEMININ| Départementale masculine Vétérans| Départementale féminine Vétérans - Division 2| Départementale masculine U11 - Division 4 - Phase 2|DFU11-4-P2 | Départementale féminine U11 - Division 4 - Phase 2|16CHAF | 1-16 CHALLENGE DE L'ANJOU FEMININ|DFU18-3-P2 | Départementale féminine U18 - Division 3 - Phase 2|DMU13-4-P2 | Départementale masculine U13 - Division 4 - Phase 2|DFU11-3-P2-P2 | Départementale féminine U11 - Division 3 - Phase 2 - Phase 2|DMU11-4-P2-P2 | Départementale masculine U11 - Division 4 - Phase 2 - Phase 2|16CHU18F | 1-16 CHALLENGE DE L'ANJOU U18 FEMININ|DMU11-4 | Départementale masculine U11 - Division 4| 1/32 CHALLENGE DE L'ANJOU FEMININ| 1/32 CHALLENGE DE L'ANJOU MASCULIN|DVM | Départementale masculine vétérans|DVF | Départementale féminine vétérans|DVF-2 | Départementale féminine vétérans - Division 2|DFU9-4-P2-P2 | Départementale féminine U9 - Division 4 - Phase 2 - Phase 2| Départementale masculine U11 - Division 3 - Phase 2 - Phase 2|TLA 8PF | 1/8 PRINCIPALE TOURNOI LOISIRS ANJOU FEMININE"
+    }
+  ],
+  "query": "PDL0049077",
+  "processingTimeMs": 2,
+  "limit": 20,
+  "offset": 0,
+  "estimatedTotalHits": 66,
+  "requestUid": "01a0a4ab-3664-73b2-ad1a-a3eae4d1a3d0"
+}
