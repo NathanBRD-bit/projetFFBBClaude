@@ -46,7 +46,18 @@ describe("script de peuplement", () => {
     const morceaux: string[] = [];
     for (const table of tables) {
       const resultat = await contexte.client.query(`select * from "${table}" order by id::text`);
-      morceaux.push(`${table}: ${JSON.stringify(resultat.rows)}`);
+      // `maj_le` est écarté de l'empreinte : depuis que la colonne se met réellement
+      // à jour, un second passage du semis la fait bouger — et c'est correct, la ligne
+      // a bien été réécrite. Le contrat d'idempotence porte sur l'état métier final,
+      // pas sur l'horodatage technique de la dernière écriture.
+      const lignesMetier = resultat.rows.map((ligne) =>
+        Object.fromEntries(
+          Object.entries(ligne as Record<string, unknown>).filter(
+            ([colonne]) => colonne !== "maj_le",
+          ),
+        ),
+      );
+      morceaux.push(`${table}: ${JSON.stringify(lignesMetier)}`);
     }
     return morceaux.join("\n");
   }
@@ -60,7 +71,7 @@ describe("script de peuplement", () => {
       salles: 3,
       competitions: 5,
       poules: 5,
-      equipes: 7,
+      equipes: 8,
       engagements: 5,
       joueurs: 6,
       utilisateurs: 2,
@@ -70,20 +81,23 @@ describe("script de peuplement", () => {
     });
   });
 
-  it("crée les 7 équipes réelles du club, dans l'ordre d'affichage voulu", async () => {
+  it("crée les 8 équipes du club, dans l'ordre d'affichage voulu", async () => {
     const equipes = await contexte.base
       .select({ slug: equipe.slug, ordre: equipe.ordre })
       .from(equipe)
       .orderBy(asc(equipe.ordre));
 
+    // Liste alignée sur les engagements réellement remontés par l'API FFBB pour le
+    // club : les catégories jeunes du SOCL sont majoritairement féminines.
     expect(equipes.map((e) => e.slug)).toEqual([
       "u9-mixte",
       "u11-masculins",
       "u13-masculins",
-      "u15-masculins",
-      "u17-feminines",
+      "u15-feminines",
+      "u18-feminines",
       "seniors-masculins",
-      "veterans-loisirs",
+      "veterans-masculins",
+      "seniors-feminines",
     ]);
   });
 
@@ -112,7 +126,7 @@ describe("script de peuplement", () => {
     }
   });
 
-  it("garde un match passé sans score remonté en `a_confirmer`, scores nuls", async () => {
+  it("range un match passé sans feuille remontée en `score_manquant`, scores nuls", async () => {
     const [ligne] = await contexte.base
       .select({
         statut: rencontre.statut,
@@ -122,7 +136,7 @@ describe("script de peuplement", () => {
       .from(rencontre)
       .where(eq(rencontre.id, IDENTIFIANTS_SEMIS.rencontreSansScoreRemonte));
 
-    expect(ligne).toEqual({ statut: "a_confirmer", scoreDomicile: null, scoreExterieur: null });
+    expect(ligne).toEqual({ statut: "score_manquant", scoreDomicile: null, scoreExterieur: null });
   });
 
   it("enregistre le forfait avec le score réglementaire 20-0", async () => {
@@ -181,5 +195,31 @@ describe("script de peuplement", () => {
       "select count(*)::int as nb from rencontre",
     );
     expect(resultat.rows[0]?.nb).toBe(11);
+  });
+
+  it("met réellement à jour `maj_le` quand une ligne change", async () => {
+    // Constat de review : `maj_le` n'avait qu'un `defaultNow()`, sans `$onUpdate`.
+    // Il gardait donc éternellement la date de création — un horodatage faux ne
+    // lève aucune erreur, il se contente de mentir à tout ce qui s'y fie.
+    const avant = await contexte.base
+      .select({ majLe: saison.majLe })
+      .from(saison)
+      .where(eq(saison.id, IDENTIFIANTS_SEMIS.saisonCourante));
+    const horodatageInitial = avant[0]?.majLe;
+    expect(horodatageInitial).toBeInstanceOf(Date);
+
+    await contexte.base
+      .update(saison)
+      .set({ libelle: "Saison 2026-2027 (libellé modifié)" })
+      .where(eq(saison.id, IDENTIFIANTS_SEMIS.saisonCourante));
+
+    const apres = await contexte.base
+      .select({ majLe: saison.majLe })
+      .from(saison)
+      .where(eq(saison.id, IDENTIFIANTS_SEMIS.saisonCourante));
+    const horodatageFinal = apres[0]?.majLe;
+
+    expect(horodatageFinal).toBeInstanceOf(Date);
+    expect(horodatageFinal?.getTime()).toBeGreaterThan(horodatageInitial?.getTime() ?? 0);
   });
 });

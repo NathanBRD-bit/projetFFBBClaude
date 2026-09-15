@@ -100,7 +100,7 @@ describe("requêtes de lecture", () => {
       .select({ slug: rencontre.slug, statut: rencontre.statut })
       .from(rencontre)
       .innerJoin(saison, eq(saison.id, rencontre.saisonId))
-      .where(and(eq(saison.code, "25-26"), eq(rencontre.statut, "a_confirmer")));
+      .where(and(eq(saison.code, "25-26"), eq(rencontre.statut, "score_manquant")));
 
     // Le match du 07/02 est passé mais son score n'est jamais remonté : il ne doit
     // apparaître ni comme résultat, ni comme 0-0.

@@ -24,9 +24,17 @@ import { competition, organisme, poule, saison, salle } from "./referentiel";
  * `disparue_de_ffbb_le` et l'absence totale de suppression.
  */
 
+/**
+ * `score_manquant` : le match a bien été joué, mais la feuille n'a jamais été
+ * remontée à la FFBB. C'est fréquent au niveau départemental. Sans ce statut, un
+ * tel match devait être rangé en `a_confirmer` — un statut qui veut dire tout
+ * autre chose (match disparu de l'index FFBB) — ou forcé en `joue` avec des
+ * scores nuls. Nommer l'absence vaut mieux que la déguiser.
+ */
 export const statutRencontre = pgEnum("statut_rencontre", [
   "a_venir",
   "joue",
+  "score_manquant",
   "reporte",
   "annule",
   "forfait",
@@ -137,12 +145,40 @@ export const rencontre = pgTable(
       sql`${t.organismeDomicileId} <> ${t.organismeExterieurId}`,
     ),
     check("rencontre_cle_naturelle_non_vide", sql`btrim(${t.cleNaturelle}) <> ''`),
+    // Symétrique de `rencontre_joue_avec_score` : un match rangé en
+    // « score manquant » qui porte un score est une contradiction.
+    check(
+      "rencontre_score_manquant_sans_score",
+      sql`${t.statut} <> 'score_manquant' or ${t.scoreDomicile} is null`,
+    ),
+    // Constat de review : rien n'empêchait `statut = 'forfait'` sans qu'aucune des
+    // deux équipes ne soit déclarée forfait — l'affichage aurait dû deviner.
+    check(
+      "rencontre_forfait_declare",
+      sql`${t.statut} <> 'forfait' or ${t.forfaitDomicile} or ${t.forfaitExterieur}`,
+    ),
+    // Constat de review : `poule_id` est couvert par une clé étrangère composite,
+    // or MATCH SIMPLE ne contrôle rien dès qu'une colonne du couple est nulle. Une
+    // poule inexistante passait donc dès que `competition_id` valait null.
+    check(
+      "rencontre_poule_implique_competition",
+      sql`${t.pouleId} is null or ${t.competitionId} is not null`,
+    ),
     // La poule doit relever de la compétition du match (clé étrangère composite,
     // MATCH SIMPLE : dès qu'une des deux colonnes est nulle, la contrainte passe).
     foreignKey({
       name: "rencontre_poule_competition_fk",
       columns: [t.pouleId, t.competitionId],
       foreignColumns: [poule.id, poule.competitionId],
+    }).onDelete("restrict"),
+    // Constat de review : `engagement` garantissait déjà que la compétition relève
+    // de la bonne saison, mais pas `rencontre`. Un match de la saison 25-26 pouvait
+    // pointer une compétition 26-27 et se retrouver listé sous la mauvaise saison,
+    // sans la moindre erreur.
+    foreignKey({
+      name: "rencontre_competition_saison_fk",
+      columns: [t.competitionId, t.saisonId],
+      foreignColumns: [competition.id, competition.saisonId],
     }).onDelete("restrict"),
 
     index("rencontre_saison_date_idx").on(t.saisonId, t.dateHeure.desc()),
@@ -185,7 +221,10 @@ export const statistiqueJoueur = pgTable(
     points: smallint("points"),
     saisiPar: uuid("saisi_par").references(() => utilisateur.id, { onDelete: "set null" }),
     saisiLe: timestamp("saisi_le", { withTimezone: true }).notNull().defaultNow(),
-    majLe: timestamp("maj_le", { withTimezone: true }).notNull().defaultNow(),
+    majLe: timestamp("maj_le", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => [
     unique("statistique_joueur_rencontre_joueur_unique").on(t.rencontreId, t.joueurId),

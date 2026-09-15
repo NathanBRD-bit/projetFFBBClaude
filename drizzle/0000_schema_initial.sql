@@ -1,6 +1,6 @@
 CREATE TYPE "public"."sexe_equipe" AS ENUM('masculin', 'feminin', 'mixte');--> statement-breakpoint
 CREATE TYPE "public"."source_donnee" AS ENUM('ffbb', 'manuel');--> statement-breakpoint
-CREATE TYPE "public"."statut_rencontre" AS ENUM('a_venir', 'joue', 'reporte', 'annule', 'forfait', 'a_confirmer');--> statement-breakpoint
+CREATE TYPE "public"."statut_rencontre" AS ENUM('a_venir', 'joue', 'score_manquant', 'reporte', 'annule', 'forfait', 'a_confirmer');--> statement-breakpoint
 CREATE TYPE "public"."statut_article" AS ENUM('brouillon', 'publie', 'archive');--> statement-breakpoint
 CREATE TYPE "public"."role_utilisateur" AS ENUM('administrateur', 'redacteur');--> statement-breakpoint
 CREATE TYPE "public"."declencheur_synchronisation" AS ENUM('cron_vercel', 'github_actions', 'manuel');--> statement-breakpoint
@@ -172,7 +172,10 @@ CREATE TABLE "rencontre" (
 	CONSTRAINT "rencontre_score_domicile_positif" CHECK ("rencontre"."score_domicile" is null or "rencontre"."score_domicile" >= 0),
 	CONSTRAINT "rencontre_score_exterieur_positif" CHECK ("rencontre"."score_exterieur" is null or "rencontre"."score_exterieur" >= 0),
 	CONSTRAINT "rencontre_organismes_distincts" CHECK ("rencontre"."organisme_domicile_id" <> "rencontre"."organisme_exterieur_id"),
-	CONSTRAINT "rencontre_cle_naturelle_non_vide" CHECK (btrim("rencontre"."cle_naturelle") <> '')
+	CONSTRAINT "rencontre_cle_naturelle_non_vide" CHECK (btrim("rencontre"."cle_naturelle") <> ''),
+	CONSTRAINT "rencontre_score_manquant_sans_score" CHECK ("rencontre"."statut" <> 'score_manquant' or "rencontre"."score_domicile" is null),
+	CONSTRAINT "rencontre_forfait_declare" CHECK ("rencontre"."statut" <> 'forfait' or "rencontre"."forfait_domicile" or "rencontre"."forfait_exterieur"),
+	CONSTRAINT "rencontre_poule_implique_competition" CHECK ("rencontre"."poule_id" is null or "rencontre"."competition_id" is not null)
 );
 --> statement-breakpoint
 CREATE TABLE "statistique_joueur" (
@@ -348,6 +351,7 @@ ALTER TABLE "rencontre" ADD CONSTRAINT "rencontre_organisme_domicile_id_organism
 ALTER TABLE "rencontre" ADD CONSTRAINT "rencontre_organisme_exterieur_id_organisme_id_fk" FOREIGN KEY ("organisme_exterieur_id") REFERENCES "public"."organisme"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rencontre" ADD CONSTRAINT "rencontre_salle_id_salle_id_fk" FOREIGN KEY ("salle_id") REFERENCES "public"."salle"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rencontre" ADD CONSTRAINT "rencontre_poule_competition_fk" FOREIGN KEY ("poule_id","competition_id") REFERENCES "public"."poule"("id","competition_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "rencontre" ADD CONSTRAINT "rencontre_competition_saison_fk" FOREIGN KEY ("competition_id","saison_id") REFERENCES "public"."competition"("id","saison_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "statistique_joueur" ADD CONSTRAINT "statistique_joueur_rencontre_id_rencontre_id_fk" FOREIGN KEY ("rencontre_id") REFERENCES "public"."rencontre"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "statistique_joueur" ADD CONSTRAINT "statistique_joueur_joueur_id_joueur_id_fk" FOREIGN KEY ("joueur_id") REFERENCES "public"."joueur"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "statistique_joueur" ADD CONSTRAINT "statistique_joueur_saisi_par_utilisateur_id_fk" FOREIGN KEY ("saisi_par") REFERENCES "public"."utilisateur"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

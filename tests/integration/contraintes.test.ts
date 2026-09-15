@@ -164,6 +164,85 @@ describe("garde-fous du schéma", () => {
 
       expect(message).toContain("rencontre_poule_competition_fk");
     });
+
+    // --- Constats relevés en review, chacun reproduit avant d'être corrigé ---
+
+    it("refuse une compétition qui ne relève pas de la saison du match", async () => {
+      // La clé étrangère composite manquait : un match de 2025-2026 pouvait pointer
+      // une compétition de 2026-2027 et se retrouver listé sous la mauvaise saison,
+      // pour toujours et sans la moindre erreur.
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          rencontreValide({
+            saisonId: IDENTIFIANTS_SEMIS.saisonPrecedente,
+            competitionId: IDENTIFIANTS_SEMIS.competitionU11Courante,
+            pouleId: IDENTIFIANTS_SEMIS.pouleU11Courante,
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_competition_saison_fk");
+    });
+
+    it("refuse une poule sans compétition, que la clé composite laissait passer", async () => {
+      // MATCH SIMPLE : dès qu'une colonne du couple est nulle, la clé étrangère ne
+      // contrôle plus rien. Une poule inexistante passait donc sans compétition.
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          rencontreValide({
+            competitionId: null,
+            pouleId: "ffffffff-0000-4000-8000-000000009999",
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_poule_implique_competition");
+    });
+
+    it("refuse un forfait dont aucune équipe n'est déclarée forfait", async () => {
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          rencontreValide({
+            statut: "forfait",
+            scoreDomicile: 20,
+            scoreExterieur: 0,
+            forfaitDomicile: false,
+            forfaitExterieur: false,
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_forfait_declare");
+    });
+
+    it("refuse un match en `score_manquant` qui porte malgré tout un score", async () => {
+      // Le statut nomme une absence : lui adjoindre un score est une contradiction.
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          rencontreValide({
+            statut: "score_manquant",
+            scoreDomicile: 58,
+            scoreExterieur: 42,
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_score_manquant_sans_score");
+    });
+
+    it("accepte un match joué dont la feuille n'a pas été remontée", async () => {
+      // La contre-épreuve : le cas réel que ce statut existe pour représenter doit,
+      // lui, passer sans difficulté. C'est la seule écriture réussie de ce fichier,
+      // donc la seule à devoir nettoyer derrière elle — le test suivant vérifie
+      // qu'aucune ligne parasite ne subsiste.
+      const ligne = rencontreValide({
+        statut: "score_manquant",
+        scoreDomicile: null,
+        scoreExterieur: null,
+      });
+      await contexte.base.insert(rencontre).values(ligne);
+      await contexte.base.delete(rencontre).where(eq(rencontre.slug, ligne.slug));
+    });
   });
 
   describe("saison", () => {

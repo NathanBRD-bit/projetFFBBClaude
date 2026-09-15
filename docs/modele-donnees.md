@@ -81,7 +81,9 @@ check (score_domicile is null or score_domicile >= 0)         -- et idem côté 
 ```
 
 La deuxième a une conséquence pratique qu'il faut avoir en tête : **un match passé sans score remonté ne peut
-pas être marqué `joue`.** Il reste en `a_confirmer` avec des scores nuls, jusqu'à saisie manuelle. C'est
+pas être marqué `joue`.** Il prend le statut `score_manquant`, avec des scores nuls, jusqu'à saisie
+manuelle. Ce statut existe pour nommer l'absence plutôt que la déguiser : il ne doit être confondu ni avec
+`a_confirmer` (match disparu de l'index FFBB) ni avec un 0-0. C'est
 voulu : le statut ne doit pas pouvoir mentir sur l'existence d'un résultat. Le jeu de peuplement contient ce
 cas (`2026-02-07-cande-le-lion-dangers-u11m`).
 

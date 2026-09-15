@@ -288,18 +288,18 @@ const EQUIPES = [
   },
   {
     id: idEquipe("4"),
-    slug: "u15-masculins",
-    nom: "U15 Masculins",
+    slug: "u15-feminines",
+    nom: "U15 Féminines",
     categorie: "U15",
-    sexe: "masculin" as const,
+    sexe: "feminin" as const,
     ordre: 4,
     creneauxMd: "Entraînement : jeudi 18 h – 19 h 30, Complexe Sportif R. Loison.",
   },
   {
     id: idEquipe("5"),
-    slug: "u17-feminines",
-    nom: "U17 Féminines",
-    categorie: "U17",
+    slug: "u18-feminines",
+    nom: "U18 Féminines",
+    categorie: "U18",
     sexe: "feminin" as const,
     ordre: 5,
     creneauxMd: "Entraînement : mardi 19 h 30 – 21 h, Complexe Sportif R. Loison.",
@@ -315,12 +315,21 @@ const EQUIPES = [
   },
   {
     id: idEquipe("7"),
-    slug: "veterans-loisirs",
-    nom: "Vétérans Loisirs",
+    slug: "veterans-masculins",
+    nom: "Vétérans Masculins",
     categorie: "Vétérans",
-    sexe: "mixte" as const,
+    sexe: "masculin" as const,
     ordre: 7,
     creneauxMd: "Entraînement : lundi 20 h 30 – 22 h, Salle de Loiré.",
+  },
+  {
+    id: idEquipe("8"),
+    slug: "seniors-feminines",
+    nom: "Seniors Féminines",
+    categorie: "Senior",
+    sexe: "feminin" as const,
+    ordre: 8,
+    creneauxMd: "Entraînement : jeudi 20 h – 22 h, Salle de Loiré.",
   },
 ];
 
@@ -611,7 +620,7 @@ const RENCONTRES = [
     vuDansFfbbLe: h("2026-06-30T06:00:00+02:00"),
   },
   // 8. **Match passé dont le score n'a jamais été remonté.** Cas typique de la FFBB.
-  //    Il reste en `a_confirmer` avec des scores `null` : la contrainte
+  //    Il passe en `score_manquant` avec des scores `null` : la contrainte
   //    `rencontre_joue_avec_score` interdit précisément de le marquer « joué » sans
   //    score, ce qui évite d'afficher un 0-0 inventé.
   {
@@ -632,7 +641,7 @@ const RENCONTRES = [
     heureConfirmee: true,
     numero: "8",
     journee: 13,
-    statut: "a_confirmer" as const,
+    statut: "score_manquant" as const,
     scoreDomicile: null,
     scoreExterieur: null,
     source: "ffbb" as const,
@@ -1026,10 +1035,32 @@ async function executerEnLigneDeCommande(): Promise<void> {
   }
 }
 
+/**
+ * Garde-fou de production.
+ *
+ * `reecrireColonnesMetier` réécrit **toutes** les colonnes métier des lignes qu'il
+ * connaît. Lancé par mégarde sur la base de production — un `.env` resté pointé sur
+ * la branche Neon de prod, un shell Vercel — ce script publierait des matchs
+ * inventés et écraserait les corrections faites au back-office. Il refuse donc de
+ * s'exécuter en production sans confirmation explicite.
+ */
+function verifierEnvironnementAutorise(): void {
+  const environnementVercel = process.env["VERCEL_ENV"];
+  const confirme = process.argv.includes("--confirmer");
+  if (environnementVercel === "production" && !confirme) {
+    throw new Error(
+      "Refus de peupler la base de PRODUCTION (VERCEL_ENV=production). " +
+        "Ce script écrase les données métier des lignes qu'il connaît. " +
+        "Relancez avec --confirmer si c'est réellement ce que vous voulez.",
+    );
+  }
+}
+
 const cheminLance = process.argv[1];
 if (cheminLance !== undefined) {
   const { pathToFileURL } = await import("node:url");
   if (import.meta.url === pathToFileURL(cheminLance).href) {
+    verifierEnvironnementAutorise();
     await executerEnLigneDeCommande();
   }
 }
@@ -1058,7 +1089,7 @@ export const IDENTIFIANTS_SEMIS = {
   rencontreAVenir: idRencontre("1"),
   /** Match joué 58-42 : celui qui porte les points par joueur. */
   rencontreJouee: idRencontre("6"),
-  /** Match passé sans score remonté, laissé en `a_confirmer`. */
+  /** Match passé dont la feuille n'a jamais été remontée : `score_manquant`. */
   rencontreSansScoreRemonte: idRencontre("8"),
   /** Forfait 20-0. */
   rencontreForfait: idRencontre("5"),

@@ -1,5 +1,5 @@
 {
-  "id": "94505b02-1888-470b-919e-1c855ce1429d",
+  "id": "e4eca662-ae2e-4d0b-8e4f-9e2b1a66e78c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1379,6 +1379,15 @@
           "columnsTo": ["id", "competition_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "rencontre_competition_saison_fk": {
+          "name": "rencontre_competition_saison_fk",
+          "tableFrom": "rencontre",
+          "tableTo": "competition",
+          "columnsFrom": ["competition_id", "saison_id"],
+          "columnsTo": ["id", "saison_id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1424,6 +1433,18 @@
         "rencontre_cle_naturelle_non_vide": {
           "name": "rencontre_cle_naturelle_non_vide",
           "value": "btrim(\"rencontre\".\"cle_naturelle\") <> ''"
+        },
+        "rencontre_score_manquant_sans_score": {
+          "name": "rencontre_score_manquant_sans_score",
+          "value": "\"rencontre\".\"statut\" <> 'score_manquant' or \"rencontre\".\"score_domicile\" is null"
+        },
+        "rencontre_forfait_declare": {
+          "name": "rencontre_forfait_declare",
+          "value": "\"rencontre\".\"statut\" <> 'forfait' or \"rencontre\".\"forfait_domicile\" or \"rencontre\".\"forfait_exterieur\""
+        },
+        "rencontre_poule_implique_competition": {
+          "name": "rencontre_poule_implique_competition",
+          "value": "\"rencontre\".\"poule_id\" is null or \"rencontre\".\"competition_id\" is not null"
         }
       },
       "isRLSEnabled": false
@@ -2689,7 +2710,7 @@
     "public.statut_rencontre": {
       "name": "statut_rencontre",
       "schema": "public",
-      "values": ["a_venir", "joue", "reporte", "annule", "forfait", "a_confirmer"]
+      "values": ["a_venir", "joue", "score_manquant", "reporte", "annule", "forfait", "a_confirmer"]
     },
     "public.statut_article": {
       "name": "statut_article",

@@ -20,5 +20,13 @@ export const identifiant = () =>
  */
 export const horodatages = () => ({
   creeLe: timestamp("cree_le", { withTimezone: true }).notNull().defaultNow(),
-  majLe: timestamp("maj_le", { withTimezone: true }).notNull().defaultNow(),
+  // `$onUpdate` est indispensable : sans lui `maj_le` garde éternellement la date
+  // de création et ment à quiconque s'y fie — affichage « modifié le », clé de
+  // cache, filtre de synchronisation incrémentale. Un horodatage faux ne lève
+  // aucune erreur, il se contente d'induire en erreur : exactement le bug
+  // silencieux que ce projet refuse.
+  majLe: timestamp("maj_le", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
