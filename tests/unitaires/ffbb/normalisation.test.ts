@@ -569,6 +569,26 @@ describe("empreinte FFBB", () => {
     expect(nonRapproche).not.toBe(rapproche);
   });
 
+  it("ne bouge pas quand la FFBB retouche le nom d'un organisme", () => {
+    // Le nom d'organisme n'entre dans les colonnes que par le `slug`, que la
+    // fusion n'a plus le droit de réécrire : le faire peser sur l'empreinte
+    // ferait diverger pour toujours une ligne que personne ne peut mettre à jour.
+    const renomme = documentAvec({
+      idOrganismeEquipe1: {
+        id: "200000000067239",
+        code: "PDL0049040",
+        nom: "CHAZÉ-SUR-ARGOS BASKET",
+        nom_simple: null,
+        nomClubPro: "",
+        logo: null,
+      },
+    });
+
+    expect(normaliser(renomme, CONTEXTE).empreinteFfbb).toBe(
+      normaliser(documentReel(), CONTEXTE).empreinteFfbb,
+    );
+  });
+
   it("est un SHA-256 hexadécimal", () => {
     expect(normaliser(documentReel(), CONTEXTE).empreinteFfbb).toMatch(/^[0-9a-f]{64}$/);
   });

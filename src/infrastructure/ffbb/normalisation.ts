@@ -234,6 +234,34 @@ export type ColonnesFfbbRencontre = {
   readonly forfaitExterieur: boolean;
 };
 
+/**
+ * Colonnes écrites **à la création et plus jamais** : ni par la fusion, ni dans
+ * l'empreinte. Deux raisons distinctes, toutes deux vérifiées :
+ *
+ * - `slug` est une **URL publique**, et il dérive du nom d'organisme FFBB, que la
+ *   fédération retouche (« CHAZE SUR ARGOS » → « CHAZÉ-SUR-ARGOS BASKET »). Le
+ *   réécrire changerait l'adresse d'une page déjà partagée, sans redirection :
+ *   les liens tomberaient en 404.
+ * - `cle_naturelle` et `slug` peuvent avoir été **désambiguïsés par T06** sur
+ *   collision (`desambiguiserCleNaturelle`, `desambiguiserSlug`). Les réémettre
+ *   au passage suivant ferait réapparaître la valeur ambiguë, qui entrerait en
+ *   collision avec l'index unique de la ligne sœur.
+ *
+ * Les exclure de l'empreinte n'y perd aucune information : tout ce qui les
+ * compose (date, saison, compétition, poule, libellés d'équipe) figure déjà dans
+ * les autres colonnes. Les y laisser ferait diverger l'empreinte d'une ligne que
+ * plus personne ne peut mettre à jour.
+ */
+const COLONNES_IMMUABLES = new Set<string>([
+  "cleNaturelle",
+  "slug",
+] satisfies (keyof ColonnesFfbbRencontre)[]);
+
+/** Voir `COLONNES_IMMUABLES`. Lu par la fusion, qui ne réécrit jamais ces colonnes. */
+export function estColonneImmuable(champ: string): boolean {
+  return COLONNES_IMMUABLES.has(champ);
+}
+
 export interface RencontreNormalisee {
   /** Clé d'idempotence, cible du `on conflict` de T06 (ADR 0002). */
   readonly idFfbb: string;
@@ -730,11 +758,16 @@ function serialiserStable(colonnes: Readonly<Record<string, ValeurColonne>>): st
  * - elle est **stable par permutation des clés JSON**, puisqu'elle est calculée
  *   sur un objet reconstruit, à clés triées, et non sur le document reçu.
  *
- * `vu_dans_ffbb_le` en est exclu (il change à chaque passage) et les colonnes
- * éditoriales n'y figurent pas, faute d'exister dans `ColonnesFfbbRencontre`.
+ * `vu_dans_ffbb_le` en est exclu (il change à chaque passage), les colonnes
+ * éditoriales n'y figurent pas faute d'exister dans `ColonnesFfbbRencontre`, et
+ * `slug` / `cle_naturelle` en sortent parce que la fusion ne les réécrit jamais
+ * (voir `COLONNES_IMMUABLES`).
  */
 function calculerEmpreinte(colonnes: ColonnesFfbbRencontre): string {
-  return createHash("sha256").update(serialiserStable(colonnes), "utf8").digest("hex");
+  const surveillees = Object.fromEntries(
+    Object.entries(colonnes).filter(([champ]) => !estColonneImmuable(champ)),
+  ) as Readonly<Record<string, ValeurColonne>>;
+  return createHash("sha256").update(serialiserStable(surveillees), "utf8").digest("hex");
 }
 
 /* ------------------------------------------------------------------ *

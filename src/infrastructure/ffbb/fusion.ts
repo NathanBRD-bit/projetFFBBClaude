@@ -1,4 +1,9 @@
-import type { ColonnesFfbbRencontre, RencontreNormalisee, ValeurColonne } from "./normalisation";
+import {
+  estColonneImmuable,
+  type ColonnesFfbbRencontre,
+  type RencontreNormalisee,
+  type ValeurColonne,
+} from "./normalisation";
 
 /**
  * Fusion : rencontre normalisée + ligne existante → ce qu'il faut écrire.
@@ -269,6 +274,13 @@ export function fusionner(
   const conflits: ConflitFusion[] = [];
 
   for (const [champ, valeurFfbb] of entrees) {
+    // `slug` et `cle_naturelle` : écrits à la création, plus jamais touchés. Le
+    // slug est une URL publique qui ne doit pas suivre les retouches de libellé
+    // FFBB, et les deux peuvent avoir été désambiguïsés par T06 sur collision —
+    // les réémettre ferait revenir la valeur ambiguë. Ce n'est pas un conflit :
+    // aucune écriture n'est tentée, il n'y a rien à arbitrer.
+    if (estColonneImmuable(champ)) continue;
+
     const valeurLocale = etatActuel.colonnes[champ];
     // Identique : rien à écrire, et surtout pas de « conflit » sur une colonne
     // verrouillée qui n'a pas bougé.

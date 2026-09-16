@@ -6,6 +6,8 @@ import {
   type EtatActuelRencontre,
 } from "@/infrastructure/ffbb/fusion";
 import {
+  desambiguiserCleNaturelle,
+  desambiguiserSlug,
   normaliser,
   type ContexteNormalisation,
   type DocumentRencontreFfbb,
@@ -261,7 +263,10 @@ describe("colonnes verrouillées", () => {
     expect(resultat.action).toBe("mettre_a_jour");
   });
 
-  it("protège un slug retouché à la main", () => {
+  it("laisse un slug retouché à la main, sans même ouvrir de conflit", () => {
+    // Le verrou est accepté, mais il ne protège plus rien : le slug est écrit à
+    // la création et jamais réécrit (voir « colonnes écrites une seule fois »).
+    // Rien n'étant tenté, il n'y a rien à arbitrer.
     const avant = rencontreAVenir();
     const etat: EtatActuelRencontre = {
       empreinteFfbb: avant.empreinteFfbb,
@@ -271,13 +276,7 @@ describe("colonnes verrouillées", () => {
 
     const resultat = fusionner(etat, rencontreJouee());
 
-    expect(resultat.conflits).toEqual([
-      {
-        champ: "slug",
-        valeurLocale: "derby-de-la-rentree",
-        valeurFfbb: avant.colonnes.slug,
-      },
-    ]);
+    expect(resultat.conflits).toEqual([]);
     expect(Object.keys(resultat.colonnes)).not.toContain("slug");
   });
 
@@ -299,6 +298,70 @@ describe("colonnes verrouillées", () => {
     expect(() => fusionner(etat, rencontreJouee())).toThrow(
       /champs_verrouilles contient « score_domicile »/,
     );
+  });
+});
+
+describe("colonnes écrites une seule fois", () => {
+  it("ne réécrit pas le slug quand la FFBB renomme l'organisme adverse", () => {
+    // Constat de review : le slug dérive du nom d'organisme FFBB, que la
+    // fédération retouche. Le réécrire changerait une URL publique déjà partagée,
+    // sans redirection — les liens tomberaient en 404.
+    const renomme = normaliser(
+      {
+        ...documentReel(),
+        idOrganismeEquipe1: {
+          id: "200000000067239",
+          code: "PDL0049040",
+          nom: "CHAZÉ-SUR-ARGOS BASKET",
+          nom_simple: null,
+          nomClubPro: "",
+          logo: null,
+        },
+      },
+      CONTEXTE,
+    );
+    const avant = rencontreAVenir();
+    expect(renomme.colonnes.slug).not.toBe(avant.colonnes.slug);
+
+    const resultat = fusionner(etatDe(avant), renomme);
+
+    expect(Object.keys(resultat.colonnes)).not.toContain("slug");
+    expect(resultat.action).toBe("inchange");
+  });
+
+  it("ne réémet pas une clé naturelle que T06 a désambiguïsée", () => {
+    // Constat de review : la désambiguïsation n'était pas collante. Au passage
+    // suivant, la fusion réémettait la valeur ambiguë, qui entrait en collision
+    // avec l'index unique de la ligne sœur — l'aller-retour du même plateau.
+    const normalisee = rencontreAVenir();
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: normalisee.empreinteFfbb,
+      champsVerrouilles: [],
+      colonnes: {
+        ...normalisee.colonnes,
+        cleNaturelle: desambiguiserCleNaturelle(
+          normalisee.colonnes.cleNaturelle,
+          normalisee.idFfbb,
+        ),
+        slug: desambiguiserSlug(normalisee.colonnes.slug, normalisee.idFfbb),
+      },
+    };
+
+    const resultat = fusionner(etat, normalisee);
+
+    expect(resultat.action).toBe("inchange");
+    expect(resultat.conflits).toEqual([]);
+  });
+
+  it("les porte en revanche à la création", () => {
+    const normalisee = rencontreAVenir();
+
+    const resultat = fusionner(null, normalisee);
+
+    expect(resultat.colonnes).toMatchObject({
+      cleNaturelle: normalisee.colonnes.cleNaturelle,
+      slug: normalisee.colonnes.slug,
+    });
   });
 });
 
