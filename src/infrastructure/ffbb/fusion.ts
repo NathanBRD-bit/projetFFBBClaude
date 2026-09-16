@@ -1,6 +1,7 @@
 import {
   estColonneImmuable,
   type ColonnesFfbbRencontre,
+  type ColonnesRencontreEnBase,
   type RencontreNormalisee,
   type ValeurColonne,
 } from "./normalisation";
@@ -91,7 +92,13 @@ export type EtatActuelRencontre = {
    */
   readonly empreinteFfbb: string | null;
   readonly champsVerrouilles: readonly string[];
-  readonly colonnes: ColonnesFfbbRencontre;
+  /**
+   * La ligne telle qu'elle est, pas telle que la FFBB la décrirait :
+   * `ColonnesRencontreEnBase` et non `ColonnesFfbbRencontre` (colonnes nullables,
+   * sept statuts). Une rencontre `annule` ou `a_confirmer` est ainsi vue comme
+   * une divergence réelle, pas comme un cas impossible.
+   */
+  readonly colonnes: ColonnesRencontreEnBase;
 } & { readonly [C in ColonneEditoriale]?: never };
 
 /* ------------------------------------------------------------------ *

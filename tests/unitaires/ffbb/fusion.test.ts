@@ -301,6 +301,52 @@ describe("colonnes verrouillées", () => {
   });
 });
 
+describe("l'état actuel décrit la vraie ligne", () => {
+  it("traite un statut que la FFBB ne produit pas comme une divergence", () => {
+    // `annule` et `a_confirmer` existent en base sans se déduire d'un document :
+    // `a_confirmer` signale une rencontre disparue de l'index, `annule` une
+    // décision humaine. Le type de l'état actuel les omettait — une rencontre
+    // réapparue dans l'index serait restée `a_confirmer` sans que rien ne le dise.
+    const normalisee = rencontreAVenir();
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: normalisee.empreinteFfbb,
+      champsVerrouilles: [],
+      colonnes: { ...normalisee.colonnes, statut: "a_confirmer" },
+    };
+
+    const resultat = fusionner(etat, normalisee);
+
+    expect(resultat.colonnes).toMatchObject({ statut: "a_venir" });
+  });
+
+  it("renseigne les colonnes que la base laisse nulles", () => {
+    // `numero`, `journee` et les deux libellés d'équipe sont nullables en base
+    // (rencontre saisie à la main) mais ne l'étaient pas dans le type : l'état
+    // d'une telle ligne était impossible à décrire.
+    const normalisee = rencontreAVenir();
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: normalisee.empreinteFfbb,
+      champsVerrouilles: [],
+      colonnes: {
+        ...normalisee.colonnes,
+        numero: null,
+        journee: null,
+        nomEquipeDomicileFfbb: null,
+        nomEquipeExterieurFfbb: null,
+      },
+    };
+
+    const resultat = fusionner(etat, normalisee);
+
+    expect(resultat.colonnes).toMatchObject({
+      numero: normalisee.colonnes.numero,
+      journee: normalisee.colonnes.journee,
+      nomEquipeDomicileFfbb: normalisee.colonnes.nomEquipeDomicileFfbb,
+      nomEquipeExterieurFfbb: normalisee.colonnes.nomEquipeExterieurFfbb,
+    });
+  });
+});
+
 describe("colonnes écrites une seule fois", () => {
   it("ne réécrit pas le slug quand la FFBB renomme l'organisme adverse", () => {
     // Constat de review : le slug dérive du nom d'organisme FFBB, que la

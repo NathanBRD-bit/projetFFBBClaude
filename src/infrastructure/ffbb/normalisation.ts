@@ -126,6 +126,14 @@ export interface ContexteNormalisation {
  */
 export type StatutNormalise = "a_venir" | "joue" | "score_manquant" | "reporte" | "forfait";
 
+/**
+ * Les **sept** valeurs de l'énumération `statut_rencontre` en base. Une ligne
+ * existante peut porter `annule` ou `a_confirmer` ; les omettre revenait à
+ * décrire une ligne qui n'existe pas, et une rencontre réapparue dans l'index
+ * serait restée `a_confirmer` sans que rien ne le dise.
+ */
+export type StatutRencontre = StatutNormalise | "annule" | "a_confirmer";
+
 export type CoteDuClub = "domicile" | "exterieur";
 
 /** Pourquoi une rencontre n'a pas été rattachée à une de nos équipes. */
@@ -232,6 +240,28 @@ export type ColonnesFfbbRencontre = {
   readonly scoreExterieur: number | null;
   readonly forfaitDomicile: boolean;
   readonly forfaitExterieur: boolean;
+};
+
+/**
+ * Les mêmes colonnes, **telles que la base les porte vraiment**.
+ *
+ * `ColonnesFfbbRencontre` décrit ce que la normalisation sait produire ; ce type
+ * décrit ce qu'une ligne existante peut contenir, et les deux ne coïncident pas :
+ * `numero`, `journee` et les deux libellés d'équipe sont nullables en base (une
+ * rencontre saisie à la main n'en a pas), et le statut y prend sept valeurs. La
+ * fusion compare une ligne réelle à une normalisation : c'est ce type qu'elle
+ * doit recevoir, sous peine de croire « identiques » des valeurs qu'elle ne sait
+ * pas représenter.
+ */
+export type ColonnesRencontreEnBase = Omit<
+  ColonnesFfbbRencontre,
+  "statut" | "numero" | "journee" | "nomEquipeDomicileFfbb" | "nomEquipeExterieurFfbb"
+> & {
+  readonly statut: StatutRencontre;
+  readonly numero: string | null;
+  readonly journee: number | null;
+  readonly nomEquipeDomicileFfbb: string | null;
+  readonly nomEquipeExterieurFfbb: string | null;
 };
 
 /**
