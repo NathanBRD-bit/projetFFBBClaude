@@ -66,12 +66,19 @@ export const rencontre = pgTable(
     /** Notre équipe, quand le libellé FFBB a pu être rattaché. `null` = non rapproché. */
     equipeId: uuid("equipe_id").references(() => equipe.id, { onDelete: "restrict" }),
 
-    organismeDomicileId: uuid("organisme_domicile_id")
-      .notNull()
-      .references(() => organisme.id, { onDelete: "restrict" }),
-    organismeExterieurId: uuid("organisme_exterieur_id")
-      .notNull()
-      .references(() => organisme.id, { onDelete: "restrict" }),
+    /**
+     * **Nullables**, et c'est une donnée observée, pas une facilité : 187 documents
+     * sur 5 000 ne publient qu'un seul des deux organismes (plateau
+     * « ENT- QUALIFICATION », équipe pas encore engagée). Les refuser ferait
+     * disparaître de vraies rencontres du site ; `nom_equipe_*_ffbb` reste là pour
+     * l'affichage. `rencontre_organisme_connu` pose le plancher : au moins un.
+     */
+    organismeDomicileId: uuid("organisme_domicile_id").references(() => organisme.id, {
+      onDelete: "restrict",
+    }),
+    organismeExterieurId: uuid("organisme_exterieur_id").references(() => organisme.id, {
+      onDelete: "restrict",
+    }),
     /** Libellés bruts reçus de la FFBB, conservés pour le rapprochement manuel. */
     nomEquipeDomicileFfbb: text("nom_equipe_domicile_ffbb"),
     nomEquipeExterieurFfbb: text("nom_equipe_exterieur_ffbb"),
@@ -151,12 +158,22 @@ export const rencontre = pgTable(
      * Le garde-fou porte donc sur le couple (organisme, libellé d'équipe) : ce
      * qu'on refuse, c'est une rencontre strictement identique des deux côtés,
      * signe d'une erreur de rapprochement et non d'un derby. `is distinct from`
-     * et non `<>` : deux libellés nuls doivent être considérés comme identiques,
-     * pas comme incomparables.
+     * et non `<>`, **des deux côtés de la disjonction** : deux libellés nuls
+     * doivent être considérés comme identiques, pas comme incomparables, et
+     * depuis que les organismes sont nullables, un `<>` sur un organisme absent
+     * rendrait toute l'expression `null` — la contrainte cesserait de garder sans
+     * le dire. `is distinct from` reste booléenne en toutes circonstances.
      */
     check(
       "rencontre_equipes_distinctes",
-      sql`${t.organismeDomicileId} <> ${t.organismeExterieurId} or ${t.nomEquipeDomicileFfbb} is distinct from ${t.nomEquipeExterieurFfbb}`,
+      sql`${t.organismeDomicileId} is distinct from ${t.organismeExterieurId} or ${t.nomEquipeDomicileFfbb} is distinct from ${t.nomEquipeExterieurFfbb}`,
+    ),
+    // Nullable ne veut pas dire « sans identité » : une rencontre dont aucun des
+    // deux organismes n'est connu n'est rattachable à personne. 2 documents sur
+    // 5 000 sont dans ce cas ; ils seront refusés à l'écriture, bruyamment.
+    check(
+      "rencontre_organisme_connu",
+      sql`${t.organismeDomicileId} is not null or ${t.organismeExterieurId} is not null`,
     ),
     check("rencontre_cle_naturelle_non_vide", sql`btrim(${t.cleNaturelle}) <> ''`),
     // Symétrique de `rencontre_joue_avec_score` : un match rangé en

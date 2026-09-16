@@ -141,7 +141,8 @@ marquée en échec. C'est l'anti-effacement de masse.
 | -------------------------------------------- | ------------------------------------------------------------------------- |
 | `saison_une_seule_courante` (index partiel)  | Deux saisons courantes → toute requête « la saison en cours » ambiguë.    |
 | `organisme_un_seul_club` (index partiel)     | Deux « notre club » → toute requête « nos matchs » ambiguë.               |
-| `rencontre_organismes_distincts`             | Un match du SOCL contre le SOCL, né d'un rapprochement raté.              |
+| `rencontre_equipes_distinctes`               | Une rencontre identique des deux côtés, née d'un rapprochement raté.      |
+| `rencontre_organisme_connu`                  | Une rencontre sans aucun organisme : rattachable à personne.              |
 | `rencontre.id_ffbb` unique                   | Un doublon à chaque synchronisation : c'est la clé d'idempotence.         |
 | `rencontre.cle_naturelle` unique, non nulle  | Filet de secours si `id_ffbb` change ou manque (match saisi à la main).   |
 | `rencontre.slug` unique                      | Deux URL publiques identiques.                                            |
@@ -253,3 +254,9 @@ Vérifié le 16/09/2026 sur l'index de production, pas supposé :
 - **Un club joue contre lui-même.** Sur 3 000 rencontres examinées, 4 opposent deux équipes d'un même club.
   C'est pourquoi `rencontre_equipes_distinctes` compare le couple (organisme, libellé d'équipe) et non les
   seuls organismes : un derby interne est une donnée valide, une rencontre identique des deux côtés non.
+- **L'organisme peut manquer.** 187 documents sur 5 000 ne publient qu'un seul des deux organismes (plateau
+  « ENT- QUALIFICATION », équipe pas encore engagée), et 2 n'en publient aucun. `organisme_domicile_id` et
+  `organisme_exterieur_id` sont donc **nullables** : les refuser ferait disparaître de vraies rencontres du
+  site, alors que `nom_equipe_*_ffbb` suffit à les afficher. Le plancher est `rencontre_organisme_connu` —
+  au moins un des deux. Conséquence assumée : **ces 2 rencontres-là seront refusées à l'écriture**, et la
+  synchronisation doit les compter comme documents invalides plutôt que faire échouer tout le lot.

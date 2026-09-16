@@ -146,6 +146,40 @@ describe("garde-fous du schéma", () => {
       await contexte.base.delete(rencontre).where(eq(rencontre.slug, ligne.slug));
     });
 
+    it("accepte une rencontre dont la FFBB ne publie pas l'organisme recevant", async () => {
+      // Constat de review : les deux colonnes étaient `not null`, alors que 187
+      // documents sur 5 000 n'ont qu'un seul organisme publié (plateau
+      // « ENT- QUALIFICATION », équipe pas encore engagée). Ces rencontres
+      // échouaient à l'écriture, donc disparaissaient du site.
+      const ligne = rencontreValide({
+        organismeDomicileId: null,
+        nomEquipeDomicileFfbb: "ENT- QUALIFICATION",
+        nomEquipeExterieurFfbb: "SO CANDE LOIRE BASKET - 1",
+      });
+      await contexte.base.insert(rencontre).values(ligne);
+      await contexte.base.delete(rencontre).where(eq(rencontre.slug, ligne.slug));
+    });
+
+    it("refuse une rencontre dont aucun des deux organismes n'est connu", async () => {
+      // Nullable ne veut pas dire « sans identité » : sans un seul organisme, la
+      // rencontre n'est rattachable à personne et n'a rien à faire en base.
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          // Deux libellés distincts : sans cela, la ligne violerait aussi
+          // `rencontre_equipes_distinctes` et le message ne dirait pas laquelle
+          // des deux contraintes a mordu.
+          rencontreValide({
+            organismeDomicileId: null,
+            organismeExterieurId: null,
+            nomEquipeDomicileFfbb: "ENT- QUALIFICATION",
+            nomEquipeExterieurFfbb: "SO CANDE LOIRE BASKET - 1",
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_organisme_connu");
+    });
+
     it("refuse un doublon d'identifiant FFBB", async () => {
       const message = await capturerRefus(() =>
         contexte.base
