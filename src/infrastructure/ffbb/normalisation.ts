@@ -445,6 +445,50 @@ function decalageFuseauMs(instant: number): number {
 const DOUZE_HEURES_MS = 12 * 60 * 60 * 1000;
 
 /**
+ * « 2026-09-19T11:30:00 » → l'instant UTC de mêmes composantes, **après contrôle
+ * que la date existe**.
+ *
+ * Le schéma Zod de T04 ne garantit que la *forme* : `\d{4}-\d{2}-\d{2}T…` accepte
+ * « 2026-06-31T20:30:00 » et « 2026-09-19T25:00:00 ». `Date.UTC` reporte alors
+ * silencieusement — le 31 juin devient le 1er juillet, 25:00 devient 01:00 le
+ * lendemain — et la rencontre se retrouve affichée un autre jour sans qu'aucune
+ * erreur n'ait été levée. C'est le bug silencieux type : une donnée fausse
+ * indiscernable d'une donnée vraie.
+ *
+ * La vérification compare donc les composantes **relues** à celles de la chaîne
+ * d'entrée. Un aller-retour sur la valeur déjà reportée ne prouverait rien : elle
+ * se réaffiche toujours identique à elle-même.
+ */
+function lireComposantes(heureLocale: string, idFfbb: string): number {
+  // Découpage par position : la forme est garantie par le schéma Zod de T04.
+  const annee = Number(heureLocale.slice(0, 4));
+  const mois = Number(heureLocale.slice(5, 7));
+  const jour = Number(heureLocale.slice(8, 10));
+  const heure = Number(heureLocale.slice(11, 13));
+  const minute = Number(heureLocale.slice(14, 16));
+  const seconde = Number(heureLocale.slice(17, 19));
+
+  const millisecondes = Date.UTC(annee, mois - 1, jour, heure, minute, seconde);
+  const relu = new Date(millisecondes);
+  const identique =
+    relu.getUTCFullYear() === annee &&
+    relu.getUTCMonth() === mois - 1 &&
+    relu.getUTCDate() === jour &&
+    relu.getUTCHours() === heure &&
+    relu.getUTCMinutes() === minute &&
+    relu.getUTCSeconds() === seconde;
+
+  if (!identique) {
+    throw new ErreurNormalisationFfbb(
+      idFfbb,
+      `date_rencontre « ${heureLocale} » n'est pas une date valide : le calendrier la ` +
+        `reporte au ${relu.toISOString().slice(0, 19)}. Refusée plutôt que décalée en silence`,
+    );
+  }
+  return millisecondes;
+}
+
+/**
  * Heure locale Europe/Paris → instant absolu.
  *
  * Deux candidats sont construits, à partir du décalage en vigueur douze heures
@@ -460,15 +504,7 @@ const DOUZE_HEURES_MS = 12 * 60 * 60 * 1000;
  *   indiscernable d'une vraie.
  */
 function convertirHeureParisienne(heureLocale: string, idFfbb: string): Date {
-  // Découpage par position : le format est garanti par le schéma Zod de T04.
-  const supposeUtc = Date.UTC(
-    Number(heureLocale.slice(0, 4)),
-    Number(heureLocale.slice(5, 7)) - 1,
-    Number(heureLocale.slice(8, 10)),
-    Number(heureLocale.slice(11, 13)),
-    Number(heureLocale.slice(14, 16)),
-    Number(heureLocale.slice(17, 19)),
-  );
+  const supposeUtc = lireComposantes(heureLocale, idFfbb);
 
   const candidats = [
     supposeUtc - decalageFuseauMs(supposeUtc - DOUZE_HEURES_MS),

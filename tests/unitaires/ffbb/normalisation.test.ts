@@ -294,6 +294,35 @@ describe("conversion de l'heure locale Europe/Paris", () => {
     );
   });
 
+  it("refuse un quantième qui n'existe pas dans le mois", () => {
+    // `Date.UTC` reporte silencieusement : le 31 juin devient le 1er juillet, et la
+    // rencontre se retrouverait affichée un autre jour sans la moindre erreur.
+    const document = documentAvec({ date: "2026-06-31", date_rencontre: "2026-06-31T20:30:00" });
+
+    expect(() => normaliser(document, CONTEXTE)).toThrow(ErreurNormalisationFfbb);
+    expect(() => normaliser(document, CONTEXTE)).toThrow(
+      /date_rencontre « 2026-06-31T20:30:00 » n'est pas une date valide/,
+    );
+  });
+
+  it("refuse un 30 février, que le report ferait glisser en mars", () => {
+    const document = documentAvec({ date: "2026-02-30", date_rencontre: "2026-02-30T15:00:00" });
+
+    expect(() => normaliser(document, CONTEXTE)).toThrow(/n'est pas une date valide/);
+  });
+
+  it("refuse une heure hors bornes plutôt que de décaler la rencontre au lendemain", () => {
+    const document = documentAvec({ date_rencontre: "2026-09-19T25:00:00" });
+
+    expect(() => normaliser(document, CONTEXTE)).toThrow(/n'est pas une date valide/);
+  });
+
+  it("refuse une minute hors bornes", () => {
+    const document = documentAvec({ date_rencontre: "2026-09-19T20:60:00" });
+
+    expect(() => normaliser(document, CONTEXTE)).toThrow(/n'est pas une date valide/);
+  });
+
   it("marque l'heure comme non confirmée quand la FFBB ne publie qu'une date", () => {
     const normalisee = normaliser(
       documentAvec({ date_rencontre: "2026-09-19T00:00:00" }),
