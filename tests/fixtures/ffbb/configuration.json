@@ -1,0 +1,16 @@
+{
+  "data": {
+    "date_created": "2024-02-01T09:52:44.371Z",
+    "date_updated": "2026-09-15T10:10:02.340Z",
+    "id": 1,
+    "key_dh": "jeton-directus-factice-pour-les-tests",
+    "key_ms": "jeton-meilisearch-factice-pour-les-tests",
+    "user_created": "ec250a4a-e5dd-480e-87b8-e2ecbbd13da5",
+    "user_updated": null,
+    "ios_version": "2.4.1",
+    "android_version": "2.4.1",
+    "key_directus_website": "jeton-directus-factice-pour-les-tests",
+    "key_directus_competitions": null,
+    "force_ms_reindex": false
+  }
+}
