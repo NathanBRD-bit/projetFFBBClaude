@@ -174,6 +174,36 @@ describe("empreinte", () => {
     expect(Object.keys(resultat.colonnes)).not.toContain("empreinteFfbb");
   });
 
+  it("écrit les colonnes libres tout en refusant le résultat verrouillé", () => {
+    // Le cas courant en pratique : la FFBB déplace un match **et** publie son
+    // score, alors qu'un score a été corrigé à la main. L'horaire doit suivre la
+    // fédération, le résultat rester protégé, et l'empreinte ne pas avancer — tant
+    // qu'elle n'avance pas, la rencontre sera réexaminée au prochain passage.
+    const avant = rencontreAVenir();
+    const apres = rencontreJouee();
+    const nouvelleDate = new Date("2026-09-20T18:00:00Z");
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: avant.empreinteFfbb,
+      champsVerrouilles: ["scoreDomicile"],
+      colonnes: {
+        ...avant.colonnes,
+        scoreDomicile: 48,
+        dateHeure: new Date("2026-09-19T18:30:00Z"),
+      },
+    };
+
+    const resultat = fusionner(etat, {
+      ...apres,
+      colonnes: { ...apres.colonnes, dateHeure: nouvelleDate },
+    });
+
+    expect(resultat.action).toBe("mettre_a_jour");
+    expect(resultat.colonnes).toMatchObject({ dateHeure: nouvelleDate });
+    expect(resultat.conflits).not.toEqual([]);
+    expect(Object.keys(resultat.colonnes)).not.toContain("empreinteFfbb");
+    expect(Object.keys(resultat.colonnes)).not.toContain("scoreDomicile");
+  });
+
   it("avance l'empreinte dès que toutes les colonnes divergentes ont pu être écrites", () => {
     const apres = rencontreJouee();
 
@@ -243,15 +273,18 @@ describe("colonnes verrouillées", () => {
 
     const resultat = fusionner(etat, apres);
 
-    expect(resultat.conflits).toEqual([
-      { champ: "scoreDomicile", valeurLocale: 48, valeurFfbb: 52 },
-      // Le verrou porte sur `scoreDomicile`, mais les deux scores sont
-      // indissociables : le second est refusé lui aussi (voir plus bas).
-      { champ: "scoreExterieur", valeurLocale: null, valeurFfbb: 61 },
-    ]);
-    expect(Object.keys(resultat.colonnes)).not.toContain("scoreDomicile");
-    // Les colonnes libres de la même rencontre, elles, sont bien écrites.
-    expect(resultat.colonnes).toMatchObject({ statut: "joue" });
+    // Le verrou porte sur `scoreDomicile`, mais tout le résultat du match est
+    // indissociable : l'autre score et le statut sont refusés avec lui.
+    expect(resultat.conflits).toEqual(
+      expect.arrayContaining([
+        { champ: "scoreDomicile", valeurLocale: 48, valeurFfbb: 52 },
+        { champ: "scoreExterieur", valeurLocale: null, valeurFfbb: 61 },
+        { champ: "statut", valeurLocale: "a_venir", valeurFfbb: "joue" },
+      ]),
+    );
+    for (const colonne of ["scoreDomicile", "scoreExterieur", "statut"]) {
+      expect(Object.keys(resultat.colonnes)).not.toContain(colonne);
+    }
   });
 
   it("ne produit pas de conflit sur une colonne verrouillée restée identique", () => {
@@ -447,7 +480,7 @@ describe("rattachement à une de nos équipes", () => {
 });
 
 describe("groupes de colonnes indissociables", () => {
-  it("refuse tout le groupe des scores quand un seul des deux est verrouillé", () => {
+  it("protège tout le résultat quand un seul score est verrouillé", () => {
     // Constat de review : les verrous s'appliquaient colonne par colonne alors que
     // la base impose des contraintes **inter-colonnes**. Score domicile verrouillé
     // à 48 et résultat rétracté côté FFBB : `score_domicile` restait à 48 pendant
@@ -462,19 +495,26 @@ describe("groupes de colonnes indissociables", () => {
 
     const resultat = fusionner(etat, rencontreAVenir());
 
-    expect(resultat.conflits).toEqual([
-      { champ: "scoreDomicile", valeurLocale: 48, valeurFfbb: null },
-      { champ: "scoreExterieur", valeurLocale: 61, valeurFfbb: null },
-    ]);
-    expect(Object.keys(resultat.colonnes)).not.toContain("scoreExterieur");
-    // Le groupe du statut, lui, n'est pas protégé : il suit la FFBB.
-    expect(resultat.colonnes).toMatchObject({ statut: "a_venir" });
+    expect(resultat.conflits).toEqual(
+      expect.arrayContaining([
+        { champ: "scoreDomicile", valeurLocale: 48, valeurFfbb: null },
+        { champ: "scoreExterieur", valeurLocale: 61, valeurFfbb: null },
+        { champ: "statut", valeurLocale: "joue", valeurFfbb: "a_venir" },
+      ]),
+    );
+    // Le statut appartient au même groupe que les scores : il est protégé lui
+    // aussi. Sans cela, la ligne écrite serait « à venir » avec un score, ce que
+    // `rencontre_joue_avec_score` et `rencontre_scores_ensemble` refusent.
+    for (const colonne of ["scoreDomicile", "scoreExterieur", "statut"]) {
+      expect(Object.keys(resultat.colonnes)).not.toContain(colonne);
+    }
   });
 
-  it("refuse tout le groupe du statut quand un seul forfait est verrouillé", () => {
-    // Même raisonnement : `rencontre_forfait_declare` lie `statut` aux deux
-    // drapeaux de forfait. Écrire `statut = 'joue'` en laissant
-    // `forfait_domicile = true` produirait une ligne que personne ne sait lire.
+  it("protège tout le résultat quand un seul forfait est verrouillé", () => {
+    // Même raisonnement dans l'autre sens : `rencontre_forfait_declare` lie
+    // `statut` aux deux drapeaux de forfait, et `rencontre_joue_avec_score` lie le
+    // statut aux scores. Écrire les scores en laissant le statut à « forfait »
+    // produirait une ligne que personne ne sait lire.
     const forfait = rencontreForfait();
     const etat: EtatActuelRencontre = {
       empreinteFfbb: forfait.empreinteFfbb,
@@ -484,13 +524,43 @@ describe("groupes de colonnes indissociables", () => {
 
     const resultat = fusionner(etat, rencontreJouee());
 
-    expect(resultat.conflits).toEqual([
-      { champ: "statut", valeurLocale: "forfait", valeurFfbb: "joue" },
-      { champ: "forfaitDomicile", valeurLocale: true, valeurFfbb: false },
-    ]);
-    expect(Object.keys(resultat.colonnes)).not.toContain("statut");
-    // Les scores, eux, relèvent de l'autre groupe : ils sont bien écrits.
-    expect(resultat.colonnes).toMatchObject({ scoreDomicile: 52, scoreExterieur: 61 });
+    expect(resultat.conflits).toEqual(
+      expect.arrayContaining([
+        { champ: "statut", valeurLocale: "forfait", valeurFfbb: "joue" },
+        { champ: "forfaitDomicile", valeurLocale: true, valeurFfbb: false },
+      ]),
+    );
+    for (const colonne of [
+      "statut",
+      "scoreDomicile",
+      "scoreExterieur",
+      "forfaitDomicile",
+      "forfaitExterieur",
+    ]) {
+      expect(Object.keys(resultat.colonnes)).not.toContain(colonne);
+    }
+  });
+
+  it("protège le résultat entier quand c'est le statut qui est verrouillé", () => {
+    // Le trou que la fusion en deux groupes laissait ouvert : statut verrouillé à
+    // « joué », scores rétractés côté FFBB. L'ancien découpage écrivait les scores
+    // à `null` en gardant `statut = 'joue'`, et `rencontre_joue_avec_score` faisait
+    // tomber la transaction entière de T06 — pour une seule rencontre.
+    const jouee = rencontreJouee();
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: jouee.empreinteFfbb,
+      champsVerrouilles: ["statut"],
+      colonnes: jouee.colonnes,
+    };
+
+    const resultat = fusionner(etat, rencontreAVenir());
+
+    expect(resultat.conflits.map((conflit) => conflit.champ)).toEqual(
+      expect.arrayContaining(["statut", "scoreDomicile", "scoreExterieur"]),
+    );
+    for (const colonne of ["statut", "scoreDomicile", "scoreExterieur"]) {
+      expect(Object.keys(resultat.colonnes)).not.toContain(colonne);
+    }
   });
 });
 

@@ -190,17 +190,22 @@ const NOMS_EDITORIAUX: readonly string[] = ["resumeMd", "affichePubliquement"];
  * Une entrée de conflit est produite **par colonne réellement divergente**, mais
  * le refus d'écriture porte sur le groupe entier.
  *
- * **Limite connue** : deux contraintes relient les deux groupes entre eux
- * (`rencontre_joue_avec_score`, `rencontre_score_manquant_sans_score`). Un verrou
- * sur `statut` seul, avec un score rétracté côté FFBB, peut donc encore produire
- * une ligne refusée par la base — bruyamment, dans la transaction de T06. Les
- * fusionner en un seul groupe figerait le statut dès qu'un score est verrouillé ;
- * l'arbitrage a été rendu en faveur de deux groupes, et le cas résiduel est
- * documenté plutôt que masqué.
+ * **Un seul groupe, et non deux.** Statut, scores et drapeaux de forfait forment
+ * une seule information — le résultat du match — et la base le dit déjà par
+ * quatre contraintes qui les relient : `rencontre_scores_ensemble`,
+ * `rencontre_joue_avec_score`, `rencontre_score_manquant_sans_score` et
+ * `rencontre_forfait_declare`. Les traiter comme deux groupes laissait un trou :
+ * un verrou sur `statut` avec un score rétracté côté FFBB produisait une ligne
+ * que la base refusait, faisant tomber toute la transaction de T06 pour une
+ * seule rencontre.
+ *
+ * La contrepartie est assumée : verrouiller un score fige aussi le statut. C'est
+ * la bonne conséquence — un score corrigé à la main et un statut qui ne lui
+ * correspond plus seraient incohérents, et c'est précisément ce que les
+ * contraintes de la base interdisent.
  */
 const GROUPES_INDISSOCIABLES: readonly (readonly string[])[] = [
-  ["scoreDomicile", "scoreExterieur"],
-  ["statut", "forfaitDomicile", "forfaitExterieur"],
+  ["statut", "scoreDomicile", "scoreExterieur", "forfaitDomicile", "forfaitExterieur"],
 ];
 
 /**
