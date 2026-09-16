@@ -154,6 +154,50 @@ function memeValeur(locale: ValeurColonne, ffbb: ValeurColonne): boolean {
 /** Les noms éditoriaux : acceptés comme verrous, sans effet (déjà intouchables). */
 const NOMS_EDITORIAUX: readonly string[] = ["resumeMd", "affichePubliquement"];
 
+/* ------------------------------------------------------------------ *
+ * Groupes de colonnes indissociables
+ * ------------------------------------------------------------------ */
+
+/**
+ * Colonnes que la base contraint **ensemble** : verrouiller l'une revient à
+ * verrouiller tout le groupe.
+ *
+ * Constat de review : les verrous s'appliquaient colonne par colonne, ce qui
+ * produisait des lignes incohérentes. `score_domicile` verrouillé à 48 et
+ * résultat rétracté côté FFBB donnait un conflit sur `scoreDomicile` (non écrit)
+ * mais un `scoreExterieur = null` écrit : la ligne violait
+ * `rencontre_scores_ensemble` et faisait échouer la transaction de T06.
+ *
+ * Une entrée de conflit est produite **par colonne réellement divergente**, mais
+ * le refus d'écriture porte sur le groupe entier.
+ *
+ * **Limite connue** : deux contraintes relient les deux groupes entre eux
+ * (`rencontre_joue_avec_score`, `rencontre_score_manquant_sans_score`). Un verrou
+ * sur `statut` seul, avec un score rétracté côté FFBB, peut donc encore produire
+ * une ligne refusée par la base — bruyamment, dans la transaction de T06. Les
+ * fusionner en un seul groupe figerait le statut dès qu'un score est verrouillé ;
+ * l'arbitrage a été rendu en faveur de deux groupes, et le cas résiduel est
+ * documenté plutôt que masqué.
+ */
+const GROUPES_INDISSOCIABLES: readonly (readonly string[])[] = [
+  ["scoreDomicile", "scoreExterieur"],
+  ["statut", "forfaitDomicile", "forfaitExterieur"],
+];
+
+/**
+ * Étend les verrous à leur groupe : toute colonne qui partage un groupe avec une
+ * colonne verrouillée devient protégée, qu'elle soit verrouillée ou non.
+ */
+function colonnesProtegees(verrous: ReadonlySet<string>): ReadonlySet<string> {
+  const protegees = new Set(verrous);
+  for (const groupe of GROUPES_INDISSOCIABLES) {
+    if (groupe.some((champ) => verrous.has(champ))) {
+      for (const champ of groupe) protegees.add(champ);
+    }
+  }
+  return protegees;
+}
+
 /**
  * Valide les noms de `champs_verrouilles` et renvoie ceux qui portent sur une
  * colonne fusionnable.
@@ -213,10 +257,12 @@ export function fusionner(
     keyof ColonnesFfbbRencontre,
     ValeurColonne,
   ][];
-  const verrous = verrousFusionnables(
-    etatActuel.champsVerrouilles,
-    entrees.map(([champ]) => champ),
-    normalisee.idFfbb,
+  const protegees = colonnesProtegees(
+    verrousFusionnables(
+      etatActuel.champsVerrouilles,
+      entrees.map(([champ]) => champ),
+      normalisee.idFfbb,
+    ),
   );
 
   const aEcrire: Partial<Record<keyof ColonnesFfbbRencontre, ValeurColonne>> = {};
@@ -228,7 +274,7 @@ export function fusionner(
     // verrouillée qui n'a pas bougé.
     if (memeValeur(valeurLocale, valeurFfbb)) continue;
 
-    if (verrous.has(champ)) {
+    if (protegees.has(champ)) {
       conflits.push({ champ, valeurLocale, valeurFfbb });
       continue;
     }
