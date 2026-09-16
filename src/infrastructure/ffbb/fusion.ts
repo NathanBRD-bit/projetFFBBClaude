@@ -15,8 +15,24 @@ import type { ColonnesFfbbRencontre, RencontreNormalisee, ValeurColonne } from "
  *    consigne en prose (docs/qualite.md).
  * 2. **Colonnes FFBB verrouillées** — celles que `champs_verrouilles` désigne.
  *    Divergence ⇒ **conflit** décrit champ par champ, et **aucune écriture**.
- * 3. **Colonnes FFBB libres** — mises à jour, et seulement si `empreinte_ffbb`
- *    a changé. Empreinte identique ⇒ `inchange`, zéro colonne, `maj_le` intact.
+ * 3. **Colonnes FFBB libres** — mises à jour dès que leur valeur diffère de
+ *    celle de la ligne. Aucune divergence ⇒ `inchange`, zéro colonne.
+ *
+ * ## L'empreinte ne décide plus rien
+ *
+ * La décision se prend sur la **comparaison des valeurs**, jamais sur
+ * `empreinte_ffbb`. Constat de review : une empreinte identique faisait conclure
+ * « rien à faire » alors que la *ligne*, elle, pouvait avoir dérivé — une colonne
+ * FFBB retouchée à la main sans verrou n'était donc jamais réconciliée, et la
+ * base gardait sa valeur pour toujours, sans conflit ni trace.
+ *
+ * L'empreinte reste écrite (diagnostic, et filtrage rapide côté T06), mais elle
+ * n'est **avancée que si toutes les colonnes divergentes ont pu être écrites** :
+ * tant qu'un conflit reste ouvert, la ligne conserve l'ancienne, de sorte que le
+ * prochain passage réexamine la rencontre. Contrepartie assumée : un conflit non
+ * résolu est re-signalé à chaque synchronisation. C'est voulu — T06 déduplique
+ * par l'index unique partiel `conflit_synchronisation_ouvert_unique`, et une
+ * divergence non traitée doit rester visible.
  *
  * ## Contrat de `champs_verrouilles`
  *
@@ -62,7 +78,12 @@ export type ColonneEditoriale = "resumeMd" | "affichePubliquement";
  * largement : le premier cercle est tenu par le compilateur.
  */
 export type EtatActuelRencontre = {
-  /** `null` pour une rencontre créée à la main, jamais encore synchronisée. */
+  /**
+   * L'empreinte du dernier passage, `null` pour une rencontre créée à la main.
+   * **La fusion ne s'en sert pas pour décider** : elle compare les valeurs (voir
+   * l'en-tête du module). Elle reste portée ici parce que T06 s'en sert pour
+   * filtrer en amont et parce qu'un diagnostic doit pouvoir la relire.
+   */
   readonly empreinteFfbb: string | null;
   readonly champsVerrouilles: readonly string[];
   readonly colonnes: ColonnesFfbbRencontre;
@@ -82,8 +103,14 @@ export interface ConflitFusion {
 
 export type ColonnesACreer = ColonnesFfbbRencontre & { readonly empreinteFfbb: string };
 
+/**
+ * `empreinteFfbb` est **optionnelle** : elle n'est portée que si toutes les
+ * colonnes divergentes ont pu être écrites. Tant qu'un conflit reste ouvert, la
+ * ligne conserve son ancienne empreinte, pour que le prochain passage réexamine
+ * la rencontre plutôt que de la croire à jour (voir `fusionner`).
+ */
 export type ColonnesAMettreAJour = Partial<ColonnesFfbbRencontre> & {
-  readonly empreinteFfbb: string;
+  readonly empreinteFfbb?: string;
 };
 
 /**
@@ -161,14 +188,12 @@ function verrousFusionnables(
  *
  * - `etatActuel === null` → `creer`, toutes les colonnes, aucun conflit
  *   possible : il n'y a pas encore de saisie à protéger.
- * - empreinte identique → `inchange`. Les verrous sont tout de même validés, et
- *   aucun conflit n'est produit : si la FFBB n'a pas bougé depuis le dernier
- *   import, un écart sur un champ verrouillé est notre propre correction
- *   manuelle, pas une divergence de source. La signaler à chaque passage
- *   noierait les vrais conflits.
+ * - aucune colonne ne diverge → `inchange`, zéro colonne.
  * - sinon → `mettre_a_jour` : les colonnes libres qui diffèrent, plus
- *   `empreinte_ffbb`. Les colonnes verrouillées qui diffèrent sortent en
- *   conflits et ne sont pas écrites.
+ *   `empreinte_ffbb` **si et seulement si** aucun conflit n'est resté ouvert.
+ *   Les colonnes verrouillées qui diffèrent sortent en conflits et ne sont pas
+ *   écrites ; quand elles sont les seules à diverger, il ne reste rien à écrire
+ *   et le résultat est un `inchange` **porteur de conflits**.
  */
 export function fusionner(
   etatActuel: EtatActuelRencontre | null,
@@ -194,10 +219,6 @@ export function fusionner(
     normalisee.idFfbb,
   );
 
-  if (etatActuel.empreinteFfbb === normalisee.empreinteFfbb) {
-    return { action: "inchange", colonnes: {}, conflits: [] };
-  }
-
   const aEcrire: Partial<Record<keyof ColonnesFfbbRencontre, ValeurColonne>> = {};
   const conflits: ConflitFusion[] = [];
 
@@ -214,16 +235,25 @@ export function fusionner(
     aEcrire[champ] = valeurFfbb;
   }
 
+  // Rien à écrire : la ligne est déjà conforme, ou tout ce qui divergeait est
+  // protégé. Les conflits sortent quand même — c'est la seule trace de la
+  // divergence, et elle doit revenir à chaque passage tant qu'elle dure.
+  if (Object.keys(aEcrire).length === 0) {
+    return { action: "inchange", colonnes: {}, conflits };
+  }
+
+  // Seule conversion du module : les clés viennent de `normalisee.colonnes`, les
+  // couples clé/valeur sont donc cohérents par construction — ce que le typage
+  // d'`Object.entries` ne sait pas exprimer sans réécrire la boucle en
+  // générique, pour aucun gain de sûreté réelle.
+  const colonnes = aEcrire as Partial<ColonnesFfbbRencontre>;
+
   return {
     action: "mettre_a_jour",
-    // Seule conversion du module : les clés viennent de `normalisee.colonnes`,
-    // les couples clé/valeur sont donc cohérents par construction — ce que le
-    // typage d'`Object.entries` ne sait pas exprimer sans réécrire la boucle en
-    // générique, pour aucun gain de sûreté réelle.
-    colonnes: {
-      ...(aEcrire as Partial<ColonnesFfbbRencontre>),
-      empreinteFfbb: normalisee.empreinteFfbb,
-    },
+    // L'empreinte ne peut avancer que si plus rien ne diverge après écriture :
+    // sinon la ligne serait déclarée « à jour » alors qu'elle ne l'est pas.
+    colonnes:
+      conflits.length === 0 ? { ...colonnes, empreinteFfbb: normalisee.empreinteFfbb } : colonnes,
     conflits,
   };
 }

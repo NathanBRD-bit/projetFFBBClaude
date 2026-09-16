@@ -87,8 +87,8 @@ describe("création", () => {
   });
 });
 
-describe("empreinte inchangée", () => {
-  it("ne produit aucune colonne quand l'empreinte est identique", () => {
+describe("rien à écrire", () => {
+  it("ne produit aucune colonne quand toutes les valeurs coïncident", () => {
     const normalisee = rencontreAVenir();
 
     const resultat = fusionner(etatDe(normalisee), normalisee);
@@ -98,9 +98,28 @@ describe("empreinte inchangée", () => {
     expect(resultat.conflits).toEqual([]);
   });
 
-  it("ne rouvre pas de conflit sur un champ verrouillé tant que la FFBB n'a pas bougé", () => {
-    // Le score a été corrigé à la main puis verrouillé ; la FFBB, elle, n'a rien
-    // republié. Signaler un conflit à chaque passage noierait les vrais.
+  it("réconcilie une retouche manuelle non verrouillée, malgré une empreinte identique", () => {
+    // Constat de review : l'empreinte décidait seule. Une colonne FFBB retouchée à
+    // la main sans verrou n'était donc **jamais** réconciliée — la base gardait sa
+    // valeur pour toujours, sans conflit ni trace.
+    const normalisee = rencontreAVenir();
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: normalisee.empreinteFfbb,
+      champsVerrouilles: [],
+      colonnes: { ...normalisee.colonnes, statut: "score_manquant" },
+    };
+
+    const resultat = fusionner(etat, normalisee);
+
+    expect(resultat.action).toBe("mettre_a_jour");
+    expect(resultat.colonnes).toMatchObject({ statut: "a_venir" });
+  });
+
+  it("re-signale le conflit à chaque passage tant que la divergence persiste", () => {
+    // Contrepartie assumée de la comparaison par valeurs : un conflit non résolu
+    // revient à chaque synchronisation. T06 déduplique par l'index unique partiel
+    // `conflit_synchronisation_ouvert_unique`, et une divergence non traitée doit
+    // rester visible.
     const normalisee = rencontreAVenir();
     const etat: EtatActuelRencontre = {
       empreinteFfbb: normalisee.empreinteFfbb,
@@ -110,8 +129,39 @@ describe("empreinte inchangée", () => {
 
     const resultat = fusionner(etat, normalisee);
 
-    expect(resultat.action).toBe("inchange");
-    expect(resultat.conflits).toEqual([]);
+    expect(resultat.conflits).toEqual([
+      { champ: "scoreDomicile", valeurLocale: 52, valeurFfbb: null },
+      { champ: "scoreExterieur", valeurLocale: 61, valeurFfbb: null },
+    ]);
+  });
+});
+
+describe("empreinte", () => {
+  it("n'avance pas l'empreinte tant qu'un conflit reste ouvert", () => {
+    // Constat de review : l'empreinte avançait malgré le refus d'écriture. En
+    // déverrouillant le champ — le geste naturel pour dire « la FFBB a raison » —
+    // l'administrateur obtenait un `inchange` au passage suivant, et la valeur FFBB
+    // n'était jamais appliquée.
+    const avant = rencontreAVenir();
+    const apres = rencontreJouee();
+    const etat: EtatActuelRencontre = {
+      empreinteFfbb: avant.empreinteFfbb,
+      champsVerrouilles: ["scoreDomicile"],
+      colonnes: { ...avant.colonnes, scoreDomicile: 48, scoreExterieur: 61 },
+    };
+
+    const resultat = fusionner(etat, apres);
+
+    expect(resultat.conflits).not.toEqual([]);
+    expect(Object.keys(resultat.colonnes)).not.toContain("empreinteFfbb");
+  });
+
+  it("avance l'empreinte dès que toutes les colonnes divergentes ont pu être écrites", () => {
+    const apres = rencontreJouee();
+
+    const resultat = fusionner(etatDe(rencontreAVenir()), apres);
+
+    expect(resultat.colonnes).toMatchObject({ empreinteFfbb: apres.empreinteFfbb });
   });
 });
 
