@@ -212,7 +212,11 @@ export type ColonnesFfbbRencontre = {
   readonly saisonCodeFfbb: string;
   readonly competitionCodeFfbb: string;
   readonly pouleCodeFfbb: string;
-  /** `null` = non rapproché. Se met à jour quand le back-office complète un engagement. */
+  /**
+   * `null` = non rapproché. Se met à jour quand le back-office complète un
+   * engagement — mais la fusion ne la repasse **jamais** à `null` : voir
+   * `fusion.ts`, un rattachement acquis ne s'efface pas tout seul.
+   */
   readonly equipeId: string | null;
   readonly organismeDomicileCodeFfbb: string | null;
   readonly organismeExterieurCodeFfbb: string | null;

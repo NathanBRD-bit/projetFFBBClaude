@@ -274,6 +274,14 @@ export function fusionner(
     // verrouillée qui n'a pas bougé.
     if (memeValeur(valeurLocale, valeurFfbb)) continue;
 
+    // Un rattachement ne s'efface pas. `equipe_id` est renseigné par le
+    // back-office, via les libellés d'engagement : un libellé retiré ou retouché
+    // ferait sinon repasser la colonne à `null`, et la rencontre disparaîtrait
+    // de « les matchs de l'équipe » sans que rien ne le signale. La FFBB peut le
+    // renseigner (null → valeur) ou le corriger (valeur → autre valeur), jamais
+    // le vider. Ce n'est pas un conflit : personne n'a rien arbitré.
+    if (champ === "equipeId" && valeurFfbb === null) continue;
+
     if (protegees.has(champ)) {
       conflits.push({ champ, valeurLocale, valeurFfbb });
       continue;

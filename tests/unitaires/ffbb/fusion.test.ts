@@ -65,6 +65,17 @@ function rencontreForfait(): RencontreNormalisee {
   return normaliser({ ...documentReel(), forfaitEquipe1: true }, CONTEXTE);
 }
 
+/**
+ * La même rencontre vue par un back-office qui rattache le libellé FFBB à
+ * l'équipe donnée — ou à aucune, quand `equipeId` vaut `null`.
+ */
+function rencontreRapprochee(equipeId: string | null): RencontreNormalisee {
+  return normaliser(documentReel(), {
+    ...CONTEXTE,
+    engagements: equipeId === null ? [] : [{ ...ENGAGEMENT, equipeId }],
+  });
+}
+
 /** L'état en base correspondant à une rencontre déjà synchronisée. */
 function etatDe(
   normalisee: RencontreNormalisee,
@@ -288,6 +299,41 @@ describe("colonnes verrouillées", () => {
     expect(() => fusionner(etat, rencontreJouee())).toThrow(
       /champs_verrouilles contient « score_domicile »/,
     );
+  });
+});
+
+describe("rattachement à une de nos équipes", () => {
+  const AUTRE_EQUIPE = "22222222-2222-4222-8222-222222222222";
+
+  it("renseigne le rattachement quand la base ne l'avait pas encore", () => {
+    const resultat = fusionner(
+      etatDe(rencontreRapprochee(null)),
+      rencontreRapprochee(IDENTIFIANT_U11),
+    );
+
+    expect(resultat.colonnes).toMatchObject({ equipeId: IDENTIFIANT_U11 });
+  });
+
+  it("corrige un rattachement devenu faux", () => {
+    const resultat = fusionner(
+      etatDe(rencontreRapprochee(IDENTIFIANT_U11)),
+      rencontreRapprochee(AUTRE_EQUIPE),
+    );
+
+    expect(resultat.colonnes).toMatchObject({ equipeId: AUTRE_EQUIPE });
+  });
+
+  it("n'efface jamais un rattachement que la FFBB ne sait plus faire", () => {
+    // Constat de review : un libellé retiré d'un engagement au back-office, ou une
+    // retouche du libellé côté FFBB, suffisait à repasser `equipe_id` à `null`.
+    // Le match disparaissait alors de « les matchs de l'équipe », sans erreur.
+    const resultat = fusionner(
+      etatDe(rencontreRapprochee(IDENTIFIANT_U11)),
+      rencontreRapprochee(null),
+    );
+
+    expect(Object.keys(resultat.colonnes)).not.toContain("equipeId");
+    expect(resultat.conflits).toEqual([]);
   });
 });
 
