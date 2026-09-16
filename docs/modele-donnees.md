@@ -236,3 +236,20 @@ Actions, sans qu'aucune de ces vérifications ne dépende de la présence de Doc
 Ce sont **exactement les fichiers SQL de `drizzle/`** qui sont appliqués, ceux qui partiront sur Neon. Le
 type `BaseDeDonnees` exposé par [`client.ts`](../src/infrastructure/bdd/client.ts) est l'interface Postgres
 générique de Drizzle : le code métier ne sait pas, et n'a pas à savoir, quel driver est branché.
+
+## Ce que la FFBB ne dit pas
+
+Vérifié le 16/09/2026 sur l'index de production, pas supposé :
+
+- **Aucun champ de report ni de forfait n'est alimenté.** `remise`, `forfaitEquipe1/2`, `defautEquipe1/2`,
+  `validee` et `penalite*` sont déclarés filtrables sur l'index FFBB, mais aucun document ne les porte :
+  `remise = true` renvoie 0 document, `remise = false` en renvoie 0 aussi, quand `joue = true` en renvoie
+  3 610. Les statuts **`reporte` et `forfait` sont donc des statuts de saisie back-office**. Un match
+  reporté restera `a_venir` à sa date d'origine tant qu'un humain ne l'aura pas corrigé.
+- **Aucune statistique individuelle de joueur** n'est exposée : la table `statistique_joueur` est alimentée
+  à la main, et uniquement par les points marqués en v1.
+- **Seule la saison en cours est indexée.** L'historique pluriannuel n'existe que chez nous, d'où
+  `disparue_de_ffbb_le` et l'interdiction faite à la synchronisation de supprimer quoi que ce soit.
+- **Un club joue contre lui-même.** Sur 3 000 rencontres examinées, 4 opposent deux équipes d'un même club.
+  C'est pourquoi `rencontre_equipes_distinctes` compare le couple (organisme, libellé d'équipe) et non les
+  seuls organismes : un derby interne est une donnée valide, une rencontre identique des deux côtés non.

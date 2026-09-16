@@ -58,17 +58,23 @@ export class ErreurNormalisationFfbb extends Error {
 /**
  * Indicateurs de situation d'une rencontre : match remis, forfait déclaré.
  *
- * **Aucun de ces champs n'existe dans l'index `ffbbserver_rencontres` observé**
- * (fixtures réelles et échantillon de 5 000 documents de l'ADR 0002) : le schéma
- * de T04 ne les déclare donc pas, et Zod les retire du document validé. Ils sont
- * ici **facultatifs** et valent `undefined` en pratique.
+ * **La FFBB ne fournira jamais ces champs**, et ce n'est pas une supposition :
+ * `remise`, `forfaitEquipe1/2`, `defautEquipe1/2`, `validee` et `penalite*` sont
+ * déclarés *filtrables* sur l'index, mais **aucun document ne les porte**. Un
+ * filtre `remise = true` renvoie 0 document ; `remise = false` en renvoie 0
+ * également, alors qu'au même instant `joue = true` en renvoie 3 610. Ce sont des
+ * reliquats de configuration que la fédération n'alimente pas (vérifié le
+ * 16/09/2026 sur l'index de production).
  *
- * Ils ne sont pas pour autant du code mort : les statuts `reporte` et `forfait`
- * existent en base (T03), la contrainte `rencontre_forfait_declare` exige qu'un
- * forfait nomme l'équipe fautive, et ces situations arriveront soit d'un champ
- * FFBB que nous n'avons pas encore vu, soit d'une saisie au back-office. Le
- * classement est écrit et testé une fois pour toutes ; le jour où la source
- * existe, il n'y a qu'à la brancher.
+ * Conséquence à connaître avant de s'y fier : **les statuts `reporte` et
+ * `forfait` ne remonteront pas de la synchronisation**. Ce sont des statuts de
+ * saisie au back-office. Un match reporté restera `a_venir` à sa date d'origine
+ * tant qu'un humain ne l'aura pas corrigé — le site ne peut pas le deviner.
+ *
+ * Ces indicateurs restent la couture par laquelle le back-office fournira
+ * l'information : le classement est écrit et testé, il n'y aura qu'à le brancher.
+ * Mais tant que cette saisie n'existe pas, ces deux branches sont **testées et
+ * non alimentées**, et il faut le dire plutôt que de les compter comme acquises.
  */
 export interface IndicateursSituationFfbb {
   /** Rencontre remise à une date ultérieure. */

@@ -138,11 +138,25 @@ export const rencontre = pgTable(
       "rencontre_score_exterieur_positif",
       sql`${t.scoreExterieur} is null or ${t.scoreExterieur} >= 0`,
     ),
-    // Une équipe ne joue pas contre elle-même. Sans ce garde-fou, une erreur de
-    // rapprochement produirait un match fantôme parfaitement affichable.
+    /**
+     * Une **équipe** ne joue pas contre elle-même — mais un **club**, si.
+     *
+     * La première version de cette contrainte comparait les organismes, ce qui
+     * rejetait un derby interne. Sur 3 000 rencontres réelles de l'index FFBB,
+     * 4 opposent deux équipes du même club (« AIX MAURIENNE S B - 2 » contre
+     * « AIX MAURIENNE S B - 3 »), et le SOCL engage lui-même plusieurs équipes
+     * dans les mêmes catégories : la synchronisation aurait échoué sur une donnée
+     * parfaitement légitime.
+     *
+     * Le garde-fou porte donc sur le couple (organisme, libellé d'équipe) : ce
+     * qu'on refuse, c'est une rencontre strictement identique des deux côtés,
+     * signe d'une erreur de rapprochement et non d'un derby. `is distinct from`
+     * et non `<>` : deux libellés nuls doivent être considérés comme identiques,
+     * pas comme incomparables.
+     */
     check(
-      "rencontre_organismes_distincts",
-      sql`${t.organismeDomicileId} <> ${t.organismeExterieurId}`,
+      "rencontre_equipes_distinctes",
+      sql`${t.organismeDomicileId} <> ${t.organismeExterieurId} or ${t.nomEquipeDomicileFfbb} is distinct from ${t.nomEquipeExterieurFfbb}`,
     ),
     check("rencontre_cle_naturelle_non_vide", sql`btrim(${t.cleNaturelle}) <> ''`),
     // Symétrique de `rencontre_joue_avec_score` : un match rangé en

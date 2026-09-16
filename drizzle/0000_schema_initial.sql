@@ -171,7 +171,7 @@ CREATE TABLE "rencontre" (
 	CONSTRAINT "rencontre_joue_avec_score" CHECK ("rencontre"."statut" <> 'joue' or "rencontre"."score_domicile" is not null),
 	CONSTRAINT "rencontre_score_domicile_positif" CHECK ("rencontre"."score_domicile" is null or "rencontre"."score_domicile" >= 0),
 	CONSTRAINT "rencontre_score_exterieur_positif" CHECK ("rencontre"."score_exterieur" is null or "rencontre"."score_exterieur" >= 0),
-	CONSTRAINT "rencontre_organismes_distincts" CHECK ("rencontre"."organisme_domicile_id" <> "rencontre"."organisme_exterieur_id"),
+	CONSTRAINT "rencontre_equipes_distinctes" CHECK ("rencontre"."organisme_domicile_id" <> "rencontre"."organisme_exterieur_id" or "rencontre"."nom_equipe_domicile_ffbb" is distinct from "rencontre"."nom_equipe_exterieur_ffbb"),
 	CONSTRAINT "rencontre_cle_naturelle_non_vide" CHECK (btrim("rencontre"."cle_naturelle") <> ''),
 	CONSTRAINT "rencontre_score_manquant_sans_score" CHECK ("rencontre"."statut" <> 'score_manquant' or "rencontre"."score_domicile" is null),
 	CONSTRAINT "rencontre_forfait_declare" CHECK ("rencontre"."statut" <> 'forfait' or "rencontre"."forfait_domicile" or "rencontre"."forfait_exterieur"),

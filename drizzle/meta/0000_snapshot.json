@@ -1,5 +1,5 @@
 {
-  "id": "e4eca662-ae2e-4d0b-8e4f-9e2b1a66e78c",
+  "id": "332c19a4-0ce6-449d-966d-34a9bf415aa9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1426,9 +1426,9 @@
           "name": "rencontre_score_exterieur_positif",
           "value": "\"rencontre\".\"score_exterieur\" is null or \"rencontre\".\"score_exterieur\" >= 0"
         },
-        "rencontre_organismes_distincts": {
-          "name": "rencontre_organismes_distincts",
-          "value": "\"rencontre\".\"organisme_domicile_id\" <> \"rencontre\".\"organisme_exterieur_id\""
+        "rencontre_equipes_distinctes": {
+          "name": "rencontre_equipes_distinctes",
+          "value": "\"rencontre\".\"organisme_domicile_id\" <> \"rencontre\".\"organisme_exterieur_id\" or \"rencontre\".\"nom_equipe_domicile_ffbb\" is distinct from \"rencontre\".\"nom_equipe_exterieur_ffbb\""
         },
         "rencontre_cle_naturelle_non_vide": {
           "name": "rencontre_cle_naturelle_non_vide",

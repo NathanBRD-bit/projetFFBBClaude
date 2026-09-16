@@ -66,7 +66,7 @@ describe("migration initiale", () => {
         "rencontre_joue_avec_score",
         "rencontre_score_domicile_positif",
         "rencontre_score_exterieur_positif",
-        "rencontre_organismes_distincts",
+        "rencontre_equipes_distinctes",
         "article_publie_avec_date",
         "article_image_alt_obligatoire",
         "statistique_joueur_points_positifs",
