@@ -23,7 +23,27 @@ export default defineConfig({
           // et son extension. Un `include` verrouillé sur `tests/unitaires/**/*.test.ts`
           // laissait tomber en silence un test mal rangé ou nommé `.test.tsx`.
           include: ["tests/**/*.test.{ts,tsx}"],
-          exclude: ["tests/composants/**", "tests/e2e/**", "tests/garde-fous/**"],
+          exclude: [
+            "tests/composants/**",
+            "tests/e2e/**",
+            "tests/garde-fous/**",
+            "tests/integration/**",
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          // Tests d'intégration sur PGlite : un vrai Postgres compilé en WebAssembly,
+          // lancé dans le processus. Aucun serveur ni conteneur à installer, donc les
+          // mêmes contraintes vérifiées en local et en CI.
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          // Chaque fichier démarre son propre Postgres et applique les migrations :
+          // le délai par défaut de 5 s est trop court pour ce démarrage à froid.
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
         },
       },
       {

@@ -45,7 +45,12 @@ jobs:
       - name: Vérifier les types
         run: npm run types
 
-      - name: Tests unitaires et de composants avec couverture
+      # Les tests d'intégration tournent dans la même commande : ils s'exécutent sur
+      # PGlite, un Postgres compilé en WebAssembly lancé dans le processus Node.
+      # Aucun `services: postgres` n'est donc nécessaire, et les migrations Drizzle
+      # sont appliquées de zéro à chaque exécution — sur les mêmes fichiers SQL que
+      # ceux qui partiront sur Neon.
+      - name: Tests unitaires, de composants et d'intégration avec couverture
         run: npm run test:couverture
 
       - name: Build de production
@@ -84,7 +89,3 @@ jobs:
           name: rapport-playwright
           path: playwright-report/
           retention-days: 7
-
-# À venir :
-# - T03 : service Postgres (`services: postgres:...`) et migrations Drizzle, pour les
-#   tests d'intégration qui touchent la base.
