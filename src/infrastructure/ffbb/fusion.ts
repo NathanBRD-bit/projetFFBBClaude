@@ -19,10 +19,16 @@ import {
  *    n'existent ni dans `ColonnesFfbbRencontre` ni dans `EtatActuelRencontre`,
  *    donc les écrire ne compile pas. Un garde-fou de type vaut mieux qu'une
  *    consigne en prose (docs/qualite.md).
- * 2. **Colonnes FFBB verrouillées** — celles que `champs_verrouilles` désigne.
- *    Divergence ⇒ **conflit** décrit champ par champ, et **aucune écriture**.
+ * 2. **Colonnes FFBB verrouillées** — celles que `champs_verrouilles` désigne,
+ *    **et toutes celles de leur groupe** (`GROUPES_INDISSOCIABLES`). Divergence
+ *    ⇒ **conflit** décrit champ par champ, et **aucune écriture**.
  * 3. **Colonnes FFBB libres** — mises à jour dès que leur valeur diffère de
  *    celle de la ligne. Aucune divergence ⇒ `inchange`, zéro colonne.
+ *
+ * Deux colonnes échappent à ce classement : `slug` et `cle_naturelle`, écrites à
+ * la création et **plus jamais** (voir `COLONNES_IMMUABLES` dans
+ * `normalisation.ts`), ainsi que l'effacement de `equipe_id`, qui n'a jamais
+ * lieu.
  *
  * ## L'empreinte ne décide plus rien
  *
@@ -45,10 +51,11 @@ import {
  * La colonne contient les **noms camelCase des colonnes fusionnables**, ceux de
  * `ColonnesFfbbRencontre` (`scoreDomicile`, `dateHeure`, `slug`, `equipeId`…),
  * plus éventuellement les deux noms éditoriaux, acceptés sans effet puisqu'ils
- * sont déjà hors d'atteinte. Tout autre nom **lève** : un verrou qui ne protège
- * rien est un mensonge silencieux, exactement ce que le projet refuse — la
- * personne qui a écrit `score_domicile` au back-office croirait le score protégé
- * alors qu'il serait écrasé au prochain import.
+ * sont déjà hors d'atteinte — comme `slug` et `cleNaturelle`, verrouillables sans
+ * effet eux aussi depuis qu'ils sont immuables. Tout autre nom **lève** : un
+ * verrou qui ne protège rien est un mensonge silencieux, exactement ce que le
+ * projet refuse — la personne qui a écrit `score_domicile` au back-office
+ * croirait le score protégé alors qu'il serait écrasé au prochain import.
  */
 
 /* ------------------------------------------------------------------ *
