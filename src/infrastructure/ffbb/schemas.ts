@@ -318,6 +318,24 @@ export function schemaReponseRecherche<T extends z.ZodType>(schemaDocument: T) {
 export const schemaReponseRencontres = schemaReponseRecherche(schemaRencontreFfbb);
 export const schemaReponseOrganismes = schemaReponseRecherche(schemaOrganismeFfbb);
 
+/**
+ * Enveloppe seule, documents laissés bruts.
+ *
+ * L'enveloppe (`limit`, `offset`, et `hits` bien tableau) commande la pagination :
+ * l'accepter à moitié n'aurait aucun sens, elle reste donc validée strictement.
+ * Les documents, eux, sont analysés **un par un** par l'appelant, de sorte qu'un
+ * seul document abîmé n'efface pas la page entière — c'est la dégradation décrite
+ * au plan (« document ignoré en entier », et non « page ignorée en entier »).
+ */
+export const schemaEnveloppeDocumentsBruts = schemaReponseRecherche(z.unknown());
+
+/**
+ * De quoi nommer un document refusé. Sans son `id`, un « document invalide » au
+ * journal de synchronisation n'apprend rien à personne et oblige à rejouer la
+ * requête à la main pour savoir lequel.
+ */
+export const schemaIdentiteDocumentFfbb = z.object({ id: z.string().min(1) });
+
 export type ReponseRencontresFfbb = z.infer<typeof schemaReponseRencontres>;
 export type ReponseOrganismesFfbb = z.infer<typeof schemaReponseOrganismes>;
 
@@ -349,24 +367,53 @@ function cheminLisible(chemin: readonly PropertyKey[]): string {
 }
 
 /**
- * Valide `valeur` ou lève. Pas de variante « safe » qui renverrait `null` : un
- * appelant qui reçoit `null` finit toujours par le confondre avec « absent ».
- * C'est à la couche synchronisation (T06) d'attraper cette erreur, de compter le
- * document comme invalide et de continuer — décision qui lui appartient, pas ici.
+ * Résultat d'une analyse tolérante : la donnée validée, ou les problèmes relevés.
+ * Jamais `null` en cas d'échec — un appelant qui reçoit `null` finit toujours par
+ * le confondre avec « absent ».
+ */
+export type AnalyseFfbb<T> =
+  | { readonly ok: true; readonly donnee: T }
+  | { readonly ok: false; readonly problemes: readonly string[] };
+
+/**
+ * Valide `valeur` **sans lever**, en rendant les problèmes Zod lisibles.
+ *
+ * C'est la brique de la lecture document par document : un document que le schéma
+ * refuse doit être écarté seul, sans emporter ses voisins de la même page (plan,
+ * tableau de dégradation — « Document invalide (Zod) → document ignoré en entier,
+ * `nb_invalides++`, chemin Zod journalisé »). Décider de compter, de journaliser
+ * et de poursuivre appartient à la synchronisation (T06) ; ici on se contente de
+ * dire ce qui ne va pas, et où.
+ */
+export function analyserFfbb<T extends z.ZodType>(
+  schema: T,
+  valeur: unknown,
+): AnalyseFfbb<z.infer<T>> {
+  const resultat = schema.safeParse(valeur);
+  if (resultat.success) {
+    return { ok: true, donnee: resultat.data };
+  }
+  return {
+    ok: false,
+    problemes: resultat.error.issues.map(
+      (probleme) => `${cheminLisible(probleme.path)} : ${probleme.message}`,
+    ),
+  };
+}
+
+/**
+ * Valide `valeur` ou lève. Réservé à ce qui n'a **pas** de sens à moitié : les
+ * jetons, l'enveloppe d'une réponse Meilisearch, la fiche du club. Un document de
+ * liste, lui, passe par `analyserFfbb` et n'emporte pas ses voisins.
  */
 export function validerFfbb<T extends z.ZodType>(
   schema: T,
   valeur: unknown,
   contexte: string,
 ): z.infer<T> {
-  const resultat = schema.safeParse(valeur);
-  if (!resultat.success) {
-    throw new ErreurValidationFfbb(
-      contexte,
-      resultat.error.issues.map(
-        (probleme) => `${cheminLisible(probleme.path)} : ${probleme.message}`,
-      ),
-    );
+  const analyse = analyserFfbb(schema, valeur);
+  if (!analyse.ok) {
+    throw new ErreurValidationFfbb(contexte, analyse.problemes);
   }
-  return resultat.data;
+  return analyse.donnee;
 }

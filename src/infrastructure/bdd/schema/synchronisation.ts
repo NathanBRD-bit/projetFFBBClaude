@@ -55,6 +55,21 @@ export const journalSynchronisation = pgTable(
     nbInchangees: integer("nb_inchangees").notNull().default(0),
     nbInvalides: integer("nb_invalides").notNull().default(0),
     nbDisparues: integer("nb_disparues").notNull().default(0),
+    /**
+     * Conflits **ouverts** par cette exécution, c'est-à-dire réellement insérés.
+     * Un conflit déjà ouvert et non résolu est re-détecté à chaque passage — c'est
+     * voulu — mais il n'est pas recompté : l'index unique partiel
+     * `conflit_synchronisation_ouvert_unique` l'écarte, et ce compteur suit les
+     * lignes créées, pas les divergences constatées.
+     */
+    nbConflits: integer("nb_conflits").notNull().default(0),
+    /**
+     * Rencontres importées qu'aucun `engagement.libelles_ffbb` ne rattache à une de
+     * nos équipes. Ce n'est pas une erreur — une équipe fraîchement engagée n'a pas
+     * encore son libellé — mais c'est ce que le tableau de bord de T11 doit lister
+     * pour qu'on aille compléter l'engagement.
+     */
+    nbNonRapprochees: integer("nb_non_rapprochees").notNull().default(0),
     messageErreur: text("message_erreur"),
   },
   (t) => [
@@ -74,6 +89,13 @@ export const journalSynchronisation = pgTable(
     check(
       "journal_compteurs_positifs",
       sql`${t.nbLues} >= 0 and ${t.nbCreees} >= 0 and ${t.nbMisesAJour} >= 0 and ${t.nbInchangees} >= 0 and ${t.nbInvalides} >= 0 and ${t.nbDisparues} >= 0`,
+    ),
+    // Contrainte distincte plutôt qu'ajout dans la précédente : une migration qui
+    // se contente d'ajouter un `check` est plus sûre à relire qu'une qui en
+    // supprime un pour le recréer.
+    check(
+      "journal_compteurs_synchronisation_positifs",
+      sql`${t.nbConflits} >= 0 and ${t.nbNonRapprochees} >= 0`,
     ),
     check("journal_duree_positive", sql`${t.dureeMs} is null or ${t.dureeMs} >= 0`),
     index("journal_synchronisation_demarree_le_idx").on(t.demarreeLe.desc()),

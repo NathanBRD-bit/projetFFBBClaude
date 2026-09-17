@@ -133,6 +133,25 @@ Un garde-fou complémentaire vit dans le moteur de sync (T06) et non dans le sch
 vide alors que la base contient des matchs, aucune disparition n'est appliquée** et la synchronisation est
 marquée en échec. C'est l'anti-effacement de masse.
 
+Deux nuances que le moteur applique et que le schéma seul ne dit pas :
+
+- le périmètre des disparitions se limite aux **saisons effectivement lues** dans l'index. L'index FFBB ne
+  contient que la saison en cours ; comparer les saisons antérieures à un index qui ne les porte pas
+  archiverait tout l'historique d'un coup ;
+- un `statut` présent dans `champs_verrouilles` n'est **pas** forcé à `a_confirmer`. La disparition est
+  signalée par un conflit et par `disparue_de_ffbb_le`, elle n'écrase pas la décision humaine.
+
+### 4. Les compteurs de `journal_synchronisation`
+
+`nb_conflits` compte les conflits **réellement ouverts** par l'exécution. Un conflit non résolu est
+re-détecté à chaque passage — c'est voulu, une divergence non arbitrée doit rester visible — mais l'index
+unique partiel `conflit_synchronisation_ouvert_unique` l'écarte, et ce compteur suit les lignes créées,
+pas les divergences constatées.
+
+`nb_non_rapprochees` compte les rencontres importées qu'aucun `engagement.libelles_ffbb` ne rattache à une
+de nos équipes. Ce n'est pas une erreur — une équipe fraîchement engagée n'a pas encore son libellé — mais
+c'est ce que le tableau de bord doit lister pour qu'on aille compléter l'engagement (T11, T13).
+
 ---
 
 ## Les autres garde-fous, et ce qu'ils empêchent

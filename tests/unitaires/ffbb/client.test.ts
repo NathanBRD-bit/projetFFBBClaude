@@ -274,7 +274,7 @@ describe("liste des rencontres d'un club", () => {
 
     const rencontres = await creerClientFfbb(fournisseur).listerRencontresDuClub(CODE_CLUB);
 
-    expect(rencontres.map((rencontre) => rencontre.id)).toEqual(["200000014681472"]);
+    expect(rencontres.rencontres.map((rencontre) => rencontre.id)).toEqual(["200000014681472"]);
     expect(autorisation).toBe("Bearer jeton-ms-de-test-1");
     expect(corpsRecu.filter).toBe(
       "idOrganismeEquipe1.code = PDL0049077 OR idOrganismeEquipe2.code = PDL0049077",
@@ -290,7 +290,7 @@ describe("liste des rencontres d'un club", () => {
 
     const rencontres = await creerClientFfbb(fournisseur).listerRencontresDuClub(CODE_CLUB);
 
-    expect(rencontres).toEqual([]);
+    expect(rencontres).toEqual({ rencontres: [], ecartes: [] });
   });
 
   it("parcourt les pages jusqu'à la première page incomplète", async () => {
@@ -315,8 +315,8 @@ describe("liste des rencontres d'un club", () => {
     );
 
     expect(appels).toBe(3);
-    expect(rencontres).toHaveLength(5);
-    expect(new Set(rencontres.map((rencontre) => rencontre.id)).size).toBe(5);
+    expect(rencontres.rencontres).toHaveLength(5);
+    expect(new Set(rencontres.rencontres.map((rencontre) => rencontre.id)).size).toBe(5);
   });
 
   it("lève au lieu de boucler quand la pagination ne s'arrête jamais", async () => {
@@ -333,17 +333,76 @@ describe("liste des rencontres d'un club", () => {
     expect(espion.nombreAppels()).toBe(MAX_PAGES);
   });
 
-  it("rejette la page entière quand un document est invalide, en nommant le champ", async () => {
+  it("écarte le document invalide en le nommant, sans emporter la page", async () => {
+    // Le document porte « F » en `resultatEquipe1`. Refuser toute la page pour lui
+    // ferait disparaître le calendrier entier du club sur un seul match mal saisi
+    // à la fédération : le plan veut « document ignoré en entier », pas « page ».
     serveurMsw.use(rencontresQuiRepondent(chargerFixture("rencontre-invalide.json")));
+    const { fournisseur } = fournisseurDeJetonsFactice();
+    const client = creerClientFfbb(fournisseur);
+
+    const lecture = await client.listerRencontresDuClub(CODE_CLUB);
+
+    expect(lecture.rencontres).toEqual([]);
+    expect(lecture.ecartes).toEqual([
+      {
+        idFfbb: "200000014681472",
+        problemes: [
+          "resultatEquipe1 : score FFBB attendu en entier positif sous forme de chaîne (ex. « 71 »)",
+        ],
+      },
+    ]);
+  });
+
+  it("nomme « null » un document écarté dont l'identifiant est lui-même illisible", async () => {
+    serveurMsw.use(
+      rencontresQuiRepondent({ hits: [{ id: 42 }], limit: 200, offset: 0, estimatedTotalHits: 1 }),
+    );
+    const { fournisseur } = fournisseurDeJetonsFactice();
+
+    const lecture = await creerClientFfbb(fournisseur).listerRencontresDuClub(CODE_CLUB);
+
+    expect(lecture.ecartes.map((ecarte) => ecarte.idFfbb)).toEqual([null]);
+  });
+
+  it("refuse l'enveloppe entière quand elle-même est illisible", async () => {
+    // L'enveloppe commande la pagination : sans `limit`, la condition d'arrêt
+    // n'existe plus. Elle reste donc validée strictement, contrairement aux
+    // documents qu'elle transporte.
+    serveurMsw.use(rencontresQuiRepondent({ hits: [] }));
     const { fournisseur } = fournisseurDeJetonsFactice();
     const client = creerClientFfbb(fournisseur);
 
     await expect(client.listerRencontresDuClub(CODE_CLUB)).rejects.toThrowError(
       ErreurValidationFfbb,
     );
-    await expect(client.listerRencontresDuClub(CODE_CLUB)).rejects.toThrowError(
-      /hits\.0\.resultatEquipe1/,
+  });
+
+  it("compte les documents écartés dans l'offset de la page suivante", async () => {
+    // Un offset calculé sur les seuls documents valides redemanderait la même page
+    // indéfiniment : la pagination doit suivre ce qui a été **reçu**.
+    const decalages: number[] = [];
+    const invalide = chargerFixture("rencontre-invalide.json");
+    const [documentInvalide] = invalide.hits as Record<string, unknown>[];
+    serveurMsw.use(
+      http.post(URL_RECHERCHE_RENCONTRES, async ({ request }) => {
+        const corps = (await request.json()) as { offset: number };
+        decalages.push(corps.offset);
+        return HttpResponse.json(
+          decalages.length === 1
+            ? { hits: [documentInvalide], limit: 1, offset: 0, estimatedTotalHits: 2 }
+            : { hits: [], limit: 1, offset: 1, estimatedTotalHits: 2 },
+        );
+      }),
     );
+    const { fournisseur } = fournisseurDeJetonsFactice();
+
+    const lecture = await creerClientFfbb(fournisseur, { taillePage: 1 }).listerRencontresDuClub(
+      CODE_CLUB,
+    );
+
+    expect(decalages).toEqual([0, 1]);
+    expect(lecture.ecartes).toHaveLength(1);
   });
 
   it("refuse un code d'organisme mal formé sans émettre la moindre requête", async () => {
@@ -374,7 +433,7 @@ describe("renouvellement des jetons sur refus d'authentification", () => {
       fetch: espion.fetch,
     }).listerRencontresDuClub(CODE_CLUB);
 
-    expect(rencontres).toHaveLength(1);
+    expect(rencontres.rencontres).toHaveLength(1);
     expect(compteurs.invalidations).toBe(1);
     expect(compteurs.obtentions).toBe(2);
     expect(espion.nombreAppels()).toBe(2);
@@ -489,7 +548,7 @@ describe("robustesse relevée en review", () => {
 
     const rencontres = await client.listerRencontresDuClub(CODE_CLUB);
 
-    expect(rencontres).toHaveLength(2);
+    expect(rencontres.rencontres).toHaveLength(2);
     // Le second appel repart de 2, pas de 4 : aucun document n'est enjambé.
     expect(decalagesDemandes).toEqual([0, 2]);
   });
