@@ -1,5 +1,5 @@
 {
-  "id": "e4eca662-ae2e-4d0b-8e4f-9e2b1a66e78c",
+  "id": "8bfc579f-47b4-4e85-a0c8-8d2c443ecd3a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1068,13 +1068,13 @@
           "name": "organisme_domicile_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "organisme_exterieur_id": {
           "name": "organisme_exterieur_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "nom_equipe_domicile_ffbb": {
           "name": "nom_equipe_domicile_ffbb",
@@ -1426,9 +1426,13 @@
           "name": "rencontre_score_exterieur_positif",
           "value": "\"rencontre\".\"score_exterieur\" is null or \"rencontre\".\"score_exterieur\" >= 0"
         },
-        "rencontre_organismes_distincts": {
-          "name": "rencontre_organismes_distincts",
-          "value": "\"rencontre\".\"organisme_domicile_id\" <> \"rencontre\".\"organisme_exterieur_id\""
+        "rencontre_equipes_distinctes": {
+          "name": "rencontre_equipes_distinctes",
+          "value": "\"rencontre\".\"organisme_domicile_id\" is distinct from \"rencontre\".\"organisme_exterieur_id\" or \"rencontre\".\"nom_equipe_domicile_ffbb\" is distinct from \"rencontre\".\"nom_equipe_exterieur_ffbb\""
+        },
+        "rencontre_organisme_connu": {
+          "name": "rencontre_organisme_connu",
+          "value": "\"rencontre\".\"organisme_domicile_id\" is not null or \"rencontre\".\"organisme_exterieur_id\" is not null"
         },
         "rencontre_cle_naturelle_non_vide": {
           "name": "rencontre_cle_naturelle_non_vide",

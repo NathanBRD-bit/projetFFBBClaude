@@ -98,17 +98,86 @@ describe("garde-fous du schéma", () => {
       expect(message).toContain("rencontre_scores_ensemble");
     });
 
-    it("refuse une équipe à domicile identique à l'équipe à l'extérieur", async () => {
+    it("refuse une rencontre strictement identique des deux côtés", async () => {
+      // Même club ET même libellé d'équipe : c'est une erreur de rapprochement,
+      // pas un match.
       const message = await capturerRefus(() =>
         contexte.base.insert(rencontre).values(
           rencontreValide({
             organismeDomicileId: IDENTIFIANTS_SEMIS.club,
             organismeExterieurId: IDENTIFIANTS_SEMIS.club,
+            nomEquipeDomicileFfbb: "SO CANDE LOIRE BASKET - 1",
+            nomEquipeExterieurFfbb: "SO CANDE LOIRE BASKET - 1",
           }),
         ),
       );
 
-      expect(message).toContain("rencontre_organismes_distincts");
+      expect(message).toContain("rencontre_equipes_distinctes");
+    });
+
+    it("refuse deux libellés nuls sur le même club, traités comme identiques", async () => {
+      // `is distinct from` et non `<>` : sans lui, deux libellés nuls seraient
+      // « incomparables » et la contrainte laisserait passer le doublon.
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          rencontreValide({
+            organismeDomicileId: IDENTIFIANTS_SEMIS.club,
+            organismeExterieurId: IDENTIFIANTS_SEMIS.club,
+            nomEquipeDomicileFfbb: null,
+            nomEquipeExterieurFfbb: null,
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_equipes_distinctes");
+    });
+
+    it("accepte un derby entre deux équipes du même club", async () => {
+      // Cas réel : 4 rencontres sur 3 000 dans l'index FFBB opposent deux équipes
+      // d'un même club, et le SOCL en jouera. La contrainte d'origine, qui
+      // comparait les organismes, aurait fait échouer la synchronisation dessus.
+      const ligne = rencontreValide({
+        organismeDomicileId: IDENTIFIANTS_SEMIS.club,
+        organismeExterieurId: IDENTIFIANTS_SEMIS.club,
+        nomEquipeDomicileFfbb: "SO CANDE LOIRE BASKET - 1",
+        nomEquipeExterieurFfbb: "SO CANDE LOIRE BASKET - 2",
+      });
+      await contexte.base.insert(rencontre).values(ligne);
+      await contexte.base.delete(rencontre).where(eq(rencontre.slug, ligne.slug));
+    });
+
+    it("accepte une rencontre dont la FFBB ne publie pas l'organisme recevant", async () => {
+      // Constat de review : les deux colonnes étaient `not null`, alors que 187
+      // documents sur 5 000 n'ont qu'un seul organisme publié (plateau
+      // « ENT- QUALIFICATION », équipe pas encore engagée). Ces rencontres
+      // échouaient à l'écriture, donc disparaissaient du site.
+      const ligne = rencontreValide({
+        organismeDomicileId: null,
+        nomEquipeDomicileFfbb: "ENT- QUALIFICATION",
+        nomEquipeExterieurFfbb: "SO CANDE LOIRE BASKET - 1",
+      });
+      await contexte.base.insert(rencontre).values(ligne);
+      await contexte.base.delete(rencontre).where(eq(rencontre.slug, ligne.slug));
+    });
+
+    it("refuse une rencontre dont aucun des deux organismes n'est connu", async () => {
+      // Nullable ne veut pas dire « sans identité » : sans un seul organisme, la
+      // rencontre n'est rattachable à personne et n'a rien à faire en base.
+      const message = await capturerRefus(() =>
+        contexte.base.insert(rencontre).values(
+          // Deux libellés distincts : sans cela, la ligne violerait aussi
+          // `rencontre_equipes_distinctes` et le message ne dirait pas laquelle
+          // des deux contraintes a mordu.
+          rencontreValide({
+            organismeDomicileId: null,
+            organismeExterieurId: null,
+            nomEquipeDomicileFfbb: "ENT- QUALIFICATION",
+            nomEquipeExterieurFfbb: "SO CANDE LOIRE BASKET - 1",
+          }),
+        ),
+      );
+
+      expect(message).toContain("rencontre_organisme_connu");
     });
 
     it("refuse un doublon d'identifiant FFBB", async () => {
