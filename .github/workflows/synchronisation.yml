@@ -1,0 +1,111 @@
+name: Synchronisation FFBB
+
+# Déclencheur **principal** de la synchronisation FFBB.
+#
+# Le cron de `vercel.json` n'est qu'un filet de sécurité : le plan Hobby de Vercel
+# limite les tâches planifiées à **une exécution par jour**, avec une précision à
+# l'heure près. Une expression plus fréquente y fait échouer le déploiement. Ce
+# workflow-ci est gratuit, aussi fin qu'on veut, et surtout il **rougit** quand la
+# route ne répond pas 200 — c'est notre alerte de secours, par mail GitHub.
+#
+# ## À déclarer sur le dépôt GitHub avant que ça marche
+#
+# Settings > Secrets and variables > Actions :
+#   - secret `CRON_SECRET`  — la **même** valeur que la variable CRON_SECRET de Vercel
+#                             (Production). Sans elle, la route répond 401 et le job rougit.
+#   - variable `URL_SITE`   — l'URL publique de production, protocole compris et sans
+#                             barre oblique finale, par exemple https://socl.vercel.app
+#                             (onglet « Variables », pas « Secrets » : ce n'est pas un secret).
+#
+# ## Fuseau horaire
+#
+# `cron` GitHub est **en UTC**, toujours, sans notion d'heure d'été. Les créneaux
+# ci-dessous sont donc calculés à la main, et volontairement un peu larges pour
+# couvrir l'hiver comme l'été sans avoir à toucher ce fichier deux fois par an.
+
+on:
+  schedule:
+    # En semaine, toutes les 2 h. L'heure exacte n'a aucune importance ici : il
+    # s'agit de récupérer les calendriers publiés dans la semaine.
+    - cron: "0 */2 * * 1-5"
+
+    # Samedis et dimanches, toutes les 15 min pendant les matchs.
+    #
+    # Objectif : 13 h → 21 h heure de Paris. Converti en UTC :
+    #   - été  (CEST, UTC+2) : 11:00 → 19:00 UTC
+    #   - hiver (CET, UTC+1) : 12:00 → 20:00 UTC
+    # L'union des deux donne 11:00 → 20:59 UTC, soit `11-20`. Le créneau déborde
+    # donc d'une heure selon la saison — c'est voulu : quelques appels de trop
+    # coûtent zéro, un score publié après la fin du créneau attendrait le jour
+    # suivant.
+    #
+    # Jours : 6 = samedi, 0 = dimanche.
+    - cron: "*/15 11-20 * * 6,0"
+
+  # Déclenchement à la main depuis l'onglet Actions, sans attendre un créneau.
+  workflow_dispatch:
+
+# Le job ne fait qu'appeler une URL : aucun droit sur le dépôt.
+permissions: {}
+
+# Deux exécutions simultanées n'apporteraient rien et se disputeraient la base.
+# Pas de `cancel-in-progress` : une synchronisation entamée va au bout.
+concurrency:
+  group: synchronisation-ffbb
+  cancel-in-progress: false
+
+jobs:
+  declencher:
+    name: Appeler la route de synchronisation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Synchroniser le calendrier et les résultats FFBB
+        env:
+          URL_SITE: ${{ vars.URL_SITE }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          # -e : la première commande en échec arrête le job.
+          # -u : une variable non définie est une erreur, pas une chaîne vide.
+          # -o pipefail : un échec au milieu d'un tube n'est pas masqué par la fin.
+          set -euo pipefail
+
+          # Une configuration manquante doit se voir tout de suite, et dire quoi
+          # faire — sinon on passerait une heure à croire que la route est cassée.
+          if [ -z "${URL_SITE}" ]; then
+            echo "::error::La variable de dépôt URL_SITE n'est pas déclarée (Settings > Secrets and variables > Actions > Variables)."
+            exit 1
+          fi
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::Le secret CRON_SECRET n'est pas déclaré (Settings > Secrets and variables > Actions > Secrets)."
+            exit 1
+          fi
+
+          # Pas de --location : une redirection signifie que URL_SITE est fausse
+          # (apex au lieu de www, http au lieu de https…). curl ne transmet pas
+          # l'en-tête Authorization à travers un changement d'hôte, l'appel
+          # arriverait donc sans secret et repartirait en 401 incompréhensible.
+          # Mieux vaut échouer ici, en le disant.
+          code=$(curl \
+            --silent --show-error \
+            --request GET \
+            --max-time 120 \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            --header "x-declencheur: github_actions" \
+            --output reponse.json \
+            --write-out '%{http_code}' \
+            "${URL_SITE}/api/cron/synchronisation-ffbb")
+
+          echo "Code HTTP : ${code}"
+          # La réponse ne contient ni secret ni détail d'infrastructure (voir
+          # src/app/api/cron/synchronisation-ffbb/route.ts) : on peut l'afficher.
+          cat reponse.json
+          echo
+
+          # Aucun `|| true` ici, aucun `continue-on-error` sur le job : c'est
+          # précisément ce `exit 1` qui déclenche le mail d'alerte à l'équipe.
+          if [ "${code}" != "200" ]; then
+            echo "::error::La synchronisation FFBB a répondu ${code} au lieu de 200. Voir le journal de synchronisation (journal_synchronisation) et les logs Vercel."
+            exit 1
+          fi

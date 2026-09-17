@@ -1,0 +1,73 @@
+name: Contrat API FFBB
+
+# Vérifie une fois par semaine que les schémas Zod du projet décrivent toujours ce
+# que l'API FFBB renvoie **réellement**.
+#
+# ## Pourquoi ce job est à part
+#
+# Toute la suite de tests tourne derrière MSW, sur des fixtures capturées : aucun
+# test ne touche le réseau, et c'est volontaire — une CI dont le vert dépend de la
+# disponibilité d'un service tiers ne prouve plus rien et bloque les PR au premier
+# hoquet de la fédération.
+#
+# Ce job est donc le **seul** du dépôt autorisé à appeler l'API réelle, et il :
+#   - ne tourne **pas** sur les PR ni sur les push : il ne bloque personne ;
+#   - rougit quand le format a changé, ce qui envoie un mail à l'équipe.
+#
+# C'est un détecteur de dérive, pas une barrière : il prévient **avant** que la
+# synchronisation quotidienne ne commence à écarter des documents.
+#
+# ## À déclarer côté GitHub
+#
+# Rien. Aucun secret, aucune variable : l'API FFBB est publique et le projet n'a
+# aucune clé (voir le commentaire final de `.env.example`).
+#
+# ## Si ce job rouge
+#
+# 1. Lire la liste des champs fautifs dans les logs du job.
+# 2. Relancer `npx tsx scripts/capturer-fixtures-ffbb.ts` en local pour capturer
+#    les réponses actuelles.
+# 3. Corriger `src/infrastructure/ffbb/schemas.ts`, avec un test qui reproduit le
+#    changement, puis ouvrir une PR.
+
+on:
+  schedule:
+    # Tous les lundis à 5 h UTC (6 h ou 7 h à Paris selon la saison) : avant le
+    # cron quotidien de Vercel, pour que l'équipe soit prévenue de la dérive avant
+    # d'en voir les effets.
+    - cron: "0 5 * * 1"
+
+  # Pour aller vérifier sans attendre lundi, par exemple après un signalement.
+  workflow_dispatch:
+
+# Le job lit le dépôt et appelle une API publique. Rien de plus.
+permissions:
+  contents: read
+
+concurrency:
+  group: contrat-ffbb
+  cancel-in-progress: false
+
+jobs:
+  contrat:
+    name: Les schémas Zod tiennent-ils encore ?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Bloquant, comme partout ailleurs : ni `|| true`, ni `continue-on-error`.
+      # Un contrat rompu doit se voir.
+      - name: Vérifier le contrat contre l'API FFBB réelle
+        run: npm run contrat:ffbb

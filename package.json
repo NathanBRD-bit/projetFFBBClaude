@@ -22,7 +22,8 @@
     "test:e2e": "playwright test",
     "bdd:generer": "drizzle-kit generate",
     "bdd:migrer": "tsx scripts/migrer.ts",
-    "bdd:semer": "tsx scripts/semer.ts"
+    "bdd:semer": "tsx scripts/semer.ts",
+    "contrat:ffbb": "tsx scripts/verifier-contrat-ffbb.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
