@@ -1,9 +1,12 @@
 import type { z } from "zod";
 
 import {
+  analyserFfbb,
   schemaConfigurationFfbb,
+  schemaEnveloppeDocumentsBruts,
+  schemaIdentiteDocumentFfbb,
+  schemaRencontreFfbb,
   schemaReponseOrganismes,
-  schemaReponseRencontres,
   validerFfbb,
   type JetonsFfbb,
   type OrganismeFfbb,
@@ -20,6 +23,19 @@ import {
  * Deux points d'entrée, aucun n'ayant de clé d'API à nous :
  * - `GET https://api.ffbb.com/items/configuration` → les jetons publics ;
  * - `POST https://meilisearch-prod.ffbb.app/indexes/<index>/search` → les données.
+ *
+ * ## Ce que la liste des rencontres rejette, et à quelle maille
+ *
+ * L'**enveloppe** Meilisearch est validée strictement : c'est elle qui commande la
+ * pagination, l'accepter à moitié n'aurait aucun sens. Les **documents**, eux,
+ * sont analysés un par un, et un document refusé par le schéma est écarté seul,
+ * listé dans `ecartes` avec son `id` et son chemin Zod.
+ *
+ * C'est la dégradation voulue par le plan (« Document invalide (Zod) → document
+ * ignoré en entier »), et ce n'est pas un détail : refuser la page entière ferait
+ * disparaître tout le calendrier du club pour un seul match mal saisi à la
+ * fédération. Le client ne juge pas pour autant — c'est la synchronisation (T06)
+ * qui compte les écartés et décide qu'au-delà de 5 % le format a changé.
  */
 
 /* ------------------------------------------------------------------ *
@@ -349,11 +365,45 @@ export interface FournisseurDeJetons {
   invalider: () => Promise<void>;
 }
 
+/**
+ * Un document que le schéma a refusé. Il est écarté **en entier** — jamais
+ * importé à moitié — mais il est nommé et daté : c'est ce qui permet à T06 de le
+ * compter (`nb_invalides`) et de journaliser le chemin Zod fautif.
+ */
+export interface DocumentFfbbEcarte {
+  /** `id` du document, ou `null` s'il est lui-même illisible. */
+  readonly idFfbb: string | null;
+  /** Un libellé `chemin : message` par problème relevé par Zod. */
+  readonly problemes: readonly string[];
+}
+
+/**
+ * Ce qu'une lecture d'index rapporte : ce qui a passé le schéma, et ce qui a été
+ * écarté.
+ *
+ * Les deux moitiés sortent ensemble, volontairement. Ne renvoyer que les
+ * documents valides ferait disparaître les autres sans trace ; lever sur le
+ * premier document abîmé ferait tomber le calendrier entier du club pour un seul
+ * match mal saisi à la fédération. La dégradation voulue par le plan est
+ * « document ignoré en entier », et c'est **l'appelant** qui décide à partir de
+ * quelle proportion d'écartés la synchronisation devient un échec.
+ */
+export interface LectureRencontresFfbb {
+  readonly rencontres: RencontreFfbb[];
+  readonly ecartes: DocumentFfbbEcarte[];
+}
+
 export interface ClientFfbb {
   /** Toutes les rencontres de la saison en cours où le club joue, à domicile ou non. */
-  listerRencontresDuClub: (codeClub: string) => Promise<RencontreFfbb[]>;
+  listerRencontresDuClub: (codeClub: string) => Promise<LectureRencontresFfbb>;
   /** La fiche club, pour ses `engagements_codes`. */
   obtenirOrganisme: (codeClub: string) => Promise<OrganismeFfbb>;
+}
+
+/** `id` du document brut quand il est lisible. `null` n'est pas un repli : c'est un fait. */
+function lireIdentifiantDocument(brut: unknown): string | null {
+  const analyse = analyserFfbb(schemaIdentiteDocumentFfbb, brut);
+  return analyse.ok ? analyse.donnee.id : null;
 }
 
 function exigerCodeOrganisme(codeClub: string): void {
@@ -423,9 +473,17 @@ export function creerClientFfbb(
   }
 
   return {
-    async listerRencontresDuClub(codeClub: string): Promise<RencontreFfbb[]> {
+    async listerRencontresDuClub(codeClub: string): Promise<LectureRencontresFfbb> {
       exigerCodeOrganisme(codeClub);
-      const toutes: RencontreFfbb[] = [];
+      const rencontres: RencontreFfbb[] = [];
+      const ecartes: DocumentFfbbEcarte[] = [];
+      /**
+       * Nombre de documents **reçus**, écartés compris. C'est lui qui commande
+       * l'offset : le compter sur les seuls documents valides ferait redemander
+       * indéfiniment la même page dès qu'un document est refusé, et sauterait en
+       * silence autant de documents qu'il y a eu d'écartés.
+       */
+      let recus = 0;
       const debut = transport.maintenant();
 
       for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -453,20 +511,28 @@ export function creerClientFfbb(
             // propre plafond, une limite ajoutée un jour), calculer l'offset sur
             // `taillePage` sauterait en silence tous les documents intermédiaires.
             // C'est la réponse qui fait foi, ici comme pour la condition d'arrêt.
-            offset: toutes.length,
+            offset: recus,
             sort: ["date_timestamp:asc"],
           },
-          schemaReponseRencontres,
+          schemaEnveloppeDocumentsBruts,
           `rencontres du club ${codeClub}, page ${String(page + 1)}`,
         );
 
-        toutes.push(...reponse.hits);
+        recus += reponse.hits.length;
+        for (const brut of reponse.hits) {
+          const analyse = analyserFfbb(schemaRencontreFfbb, brut);
+          if (analyse.ok) {
+            rencontres.push(analyse.donnee);
+            continue;
+          }
+          ecartes.push({ idFfbb: lireIdentifiantDocument(brut), problemes: analyse.problemes });
+        }
 
         // Page incomplète = dernière page. Un index vide renvoie zéro document
         // dès la première page : c'est un résultat vide, pas une erreur — c'est à
         // la synchronisation (T06) de juger qu'un index vide est suspect.
         if (reponse.hits.length < reponse.limit) {
-          return toutes;
+          return { rencontres, ecartes };
         }
       }
 

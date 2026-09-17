@@ -1,0 +1,3 @@
+ALTER TABLE "journal_synchronisation" ADD COLUMN "nb_conflits" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "journal_synchronisation" ADD COLUMN "nb_non_rapprochees" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "journal_synchronisation" ADD CONSTRAINT "journal_compteurs_synchronisation_positifs" CHECK ("journal_synchronisation"."nb_conflits" >= 0 and "journal_synchronisation"."nb_non_rapprochees" >= 0);
