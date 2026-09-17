@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   composerMessageAlerte,
   creerAlerte,
+  creerAlertePanne,
   LONGUEUR_MESSAGE_ERREUR,
   NOM_VARIABLE_WEBHOOK,
 } from "@/infrastructure/ffbb/alerte";
@@ -175,5 +176,116 @@ describe("creerAlerte", () => {
 
     expect(journalConsole).toHaveBeenCalledWith(expect.stringContaining(RESUME.journalId));
     journalConsole.mockRestore();
+  });
+});
+
+/**
+ * Panne survenue **avant** l'ouverture du journal — base injoignable ou
+ * `DATABASE_URL` absente. Constat de review : c'était la seule panne à ne
+ * déclencher aucune alerte, alors que c'est la plus grave.
+ */
+describe("alerte de panne avant journalisation", () => {
+  const PANNE = "getaddrinfo ENOTFOUND ep-cool-123.eu-central-1.aws.neon.tech";
+
+  it("envoie l'alerte au webhook sans identifiant de journal", async () => {
+    let corps: unknown;
+    serveurMsw.use(
+      http.post(URL_WEBHOOK, async ({ request }) => {
+        corps = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await creerAlertePanne({ env: { [NOM_VARIABLE_WEBHOOK]: URL_WEBHOOK } })(PANNE);
+
+    expect(corps).toMatchObject({ statut: "echec" });
+    expect(JSON.stringify(corps)).toContain("panne avant journalisation");
+  });
+
+  it("masque le nom d'hôte de la base avant de l'envoyer à un tiers", async () => {
+    // Le point entier du constat : une alerte part vers Slack ou Discord, où
+    // elle reste dans l'historique du salon. Elle doit être assainie comme la
+    // réponse HTTP.
+    let corps = "";
+    serveurMsw.use(
+      http.post(URL_WEBHOOK, async ({ request }) => {
+        corps = await request.text();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await creerAlertePanne({ env: { [NOM_VARIABLE_WEBHOOK]: URL_WEBHOOK } })(PANNE);
+
+    expect(corps).not.toContain("neon.tech");
+    expect(corps).toContain("hôte masqué");
+  });
+
+  it("écrit sur la sortie d'erreur quand aucun webhook n'est configuré", async () => {
+    const journal: string[] = [];
+
+    await creerAlertePanne({ env: {}, journaliserErreur: (texte) => journal.push(texte) })(PANNE);
+
+    expect(journal).toHaveLength(1);
+    expect(journal[0]).toContain(`${NOM_VARIABLE_WEBHOOK} non configurée`);
+  });
+
+  it("signale un webhook qui refuse, sans jamais rejeter", async () => {
+    const journal: string[] = [];
+    serveurMsw.use(http.post(URL_WEBHOOK, () => new HttpResponse("non", { status: 500 })));
+
+    await expect(
+      creerAlertePanne({
+        env: { [NOM_VARIABLE_WEBHOOK]: URL_WEBHOOK },
+        journaliserErreur: (texte) => journal.push(texte),
+      })(PANNE),
+    ).resolves.toBeUndefined();
+
+    expect(journal[0]).toContain("refusé");
+  });
+
+  it("signale un webhook injoignable, sans jamais rejeter", async () => {
+    const journal: string[] = [];
+
+    await expect(
+      creerAlertePanne({
+        env: { [NOM_VARIABLE_WEBHOOK]: URL_WEBHOOK },
+        envoyer: () => Promise.reject(new Error("réseau coupé")),
+        journaliserErreur: (texte) => journal.push(texte),
+      })(PANNE),
+    ).resolves.toBeUndefined();
+
+    expect(journal[0]).toContain("injoignable");
+  });
+
+  it("supporte un rejet qui n'est pas une Error", async () => {
+    const journal: string[] = [];
+
+    await creerAlertePanne({
+      env: { [NOM_VARIABLE_WEBHOOK]: URL_WEBHOOK },
+      envoyer: () => Promise.reject("panne brute"),
+      journaliserErreur: (texte) => journal.push(texte),
+    })(PANNE);
+
+    expect(journal[0]).toContain("panne brute");
+  });
+
+  it("écrit sur console.error quand aucun journal n'est fourni", async () => {
+    // La sortie par défaut, celle qui sert réellement en production : sans
+    // dépendance injectée, l'alerte doit atterrir dans les journaux Vercel.
+    const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await creerAlertePanne({ env: {} })(PANNE);
+
+    expect(espion).toHaveBeenCalledOnce();
+    expect(espion.mock.calls[0]?.[0]).toContain("panne avant journalisation");
+    espion.mockRestore();
+  });
+
+  it("reste lisible quand le message de panne est vide", async () => {
+    const journal: string[] = [];
+
+    await creerAlertePanne({ env: {}, journaliserErreur: (texte) => journal.push(texte) })("");
+
+    expect(journal[0]).toContain("Erreur :");
   });
 });

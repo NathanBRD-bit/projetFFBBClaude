@@ -1,3 +1,4 @@
+import { assainirMessage } from "./assainissement";
 import type { ResumeSynchronisation } from "./synchronisation";
 
 /**
@@ -65,10 +66,13 @@ export function composerMessageAlerte(resume: ResumeSynchronisation): string {
   const compteurs = Object.entries(resume.compteurs)
     .map(([nom, valeur]) => `${nom}=${String(valeur)}`)
     .join(", ");
-  const erreur =
-    resume.messageErreur === null
-      ? "aucun message d'erreur enregistré"
-      : tronquer(resume.messageErreur);
+  // Constat de review : le message partait brut vers Slack ou Discord, alors que
+  // la réponse HTTP, elle, était soigneusement masquée. Une chaîne de connexion
+  // Postgres n'est pas moins divulguée parce qu'elle atterrit dans un salon
+  // d'équipe — elle y reste même dans l'historique. Même assainissement des deux
+  // côtés, par le même module.
+  const assaini = assainirMessage(resume.messageErreur);
+  const erreur = assaini === null ? "aucun message d'erreur enregistré" : tronquer(assaini);
 
   return [
     `[SOCL] Synchronisation FFBB : ${resume.statut} (${String(resume.dureeMs)} ms)`,
@@ -96,6 +100,64 @@ function corpsWebhook(resume: ResumeSynchronisation, message: string): string {
     compteurs: resume.compteurs,
   });
 }
+
+/**
+ * Alerte d'une panne survenue **avant** l'ouverture du journal.
+ *
+ * Constat de review : `synchroniser()` ouvre sa ligne de journal avant son
+ * propre `try`, et `obtenirBase()` lève si `DATABASE_URL` manque. Une base
+ * injoignable ne produisait donc ni résumé, ni journal, ni alerte — la panne la
+ * plus grave était la seule à rester muette.
+ *
+ * Il n'y a ici ni identifiant de journal ni compteurs, et on ne fabrique pas de
+ * faux résumé pour faire semblant : le message dit ce qu'on sait, et rien de
+ * plus. Comme `alerterEquipe`, cette fonction **ne rejette jamais**.
+ */
+export function creerAlertePanne(
+  dependances: DependancesAlerte = {},
+): (message: string) => Promise<void> {
+  const env = dependances.env ?? process.env;
+  const envoyer = dependances.envoyer ?? fetch;
+  const journaliserErreur =
+    dependances.journaliserErreur ??
+    ((texte: string) => {
+      console.error(texte);
+    });
+
+  return async (message: string): Promise<void> => {
+    const texte = [
+      "[SOCL] Synchronisation FFBB : panne avant journalisation",
+      `Erreur : ${tronquer(assainirMessage(message))}`,
+      "Aucun journal n'a pu être ouvert : la base est probablement injoignable.",
+    ].join("\n");
+    const url = env[NOM_VARIABLE_WEBHOOK];
+
+    if (url === undefined || url.trim() === "") {
+      journaliserErreur(
+        `${texte}\n(${NOM_VARIABLE_WEBHOOK} non configurée : alerte écrite sur la sortie d'erreur uniquement.)`,
+      );
+      return;
+    }
+
+    try {
+      const reponse = await envoyer(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: texte, content: texte, statut: "echec" }),
+        signal: AbortSignal.timeout(DELAI_WEBHOOK_MS),
+      });
+      if (!reponse.ok) {
+        journaliserErreur(`${texte}\n(webhook d'alerte refusé : ${String(reponse.status)}.)`);
+      }
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      journaliserErreur(`${texte}\n(webhook d'alerte injoignable : ${detail})`);
+    }
+  };
+}
+
+/** Implémentation par défaut de l'alerte de panne avant journalisation. */
+export const alerterPanne = creerAlertePanne();
 
 /**
  * Construit l'implémentation par défaut du crochet `alerter`.

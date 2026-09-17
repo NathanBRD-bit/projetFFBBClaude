@@ -1,6 +1,7 @@
 import { verifierSecretCron } from "@/auth/secret-cron";
 import { obtenirBase } from "@/infrastructure/bdd/client";
-import { alerterEquipe } from "@/infrastructure/ffbb/alerte";
+import { alerterEquipe, alerterPanne } from "@/infrastructure/ffbb/alerte";
+import { assainirMessage } from "@/infrastructure/ffbb/assainissement";
 import {
   synchroniser,
   type DeclencheurSynchronisation,
@@ -76,26 +77,6 @@ const EN_TETE_CRON_VERCEL = "x-vercel-cron";
 const CORPS_REFUS = { erreur: "Non autorisé." };
 
 /** Longueur du message d'erreur recopiée dans la réponse. */
-const LONGUEUR_MESSAGE_MAX = 500;
-
-/**
- * Toute URI est masquée, sans exception.
- *
- * Le message d'erreur vient du moteur de synchronisation et peut contenir ce
- * qu'a dit le driver Postgres ou le client HTTP — donc une chaîne de connexion,
- * un nom d'hôte interne, voire des identifiants. Filtrer au cas par cas
- * reviendrait à parier sur la forme des messages d'erreur à venir ; on masque
- * donc tout ce qui ressemble à une URI, quitte à masquer une URL FFBB anodine.
- * Le message intégral reste disponible dans `journal_synchronisation`.
- */
-const URI = /\b[a-z][a-z0-9+.-]*:\/\/\S+/gi;
-
-function assainirMessage(message: string | null): string | null {
-  if (message === null) {
-    return null;
-  }
-  return message.replace(URI, "[uri masquée]").slice(0, LONGUEUR_MESSAGE_MAX);
-}
 
 /**
  * Qui a déclenché cette exécution, tel qu'il sera écrit au journal.
@@ -106,7 +87,13 @@ function assainirMessage(message: string | null): string | null {
  * valeur par défaut qui masque une absence, c'est la bonne réponse.
  */
 function declencheurDe(requete: Request): DeclencheurSynchronisation {
-  if (requete.headers.get(EN_TETE_CRON_VERCEL) !== null) {
+  // Deux signatures pour le cron Vercel, et non une. L'en-tête `x-vercel-cron`
+  // n'est pas garanti par la documentation ; l'agent utilisateur `vercel-cron`,
+  // lui, est observable. Se fier au seul en-tête ferait journaliser chaque
+  // exécution nocturne comme un déclenchement « manuel », et la colonne
+  // `declencheur` ne distinguerait plus rien — une donnée fausse et silencieuse.
+  const agent = requete.headers.get("user-agent") ?? "";
+  if (requete.headers.get(EN_TETE_CRON_VERCEL) !== null || /vercel-cron/i.test(agent)) {
     return "cron_vercel";
   }
   const annonce = requete.headers.get(EN_TETE_DECLENCHEUR);
@@ -150,16 +137,42 @@ async function traiter(requete: Request): Promise<Response> {
     return reponseJson(CORPS_REFUS, 401);
   }
 
-  // `synchroniser()` ne lève pas : une exécution ratée revient en `echec`
-  // journalisé. Pas de `try` ici, donc — il n'envelopperait rien.
-  const resume = await synchroniser({
-    base: obtenirBase(),
-    codeClubFfbb: CODE_CLUB_FFBB,
-    declencheur: declencheurDe(requete),
-    alerter: alerterEquipe,
-  });
+  // Constat de review : `synchroniser()` ne lève **pas toujours**. Il ouvre le
+  // journal en base *avant* son propre `try`, et `obtenirBase()` lève si
+  // `DATABASE_URL` manque. Autrement dit, la panne qui échappait à cette route
+  // était précisément la plus grave : base injoignable ou non configurée.
+  //
+  // Sans ce `try`, Next répondait son propre 500 en HTML, sans `cache-control`,
+  // sans identifiant de journal — et surtout **sans déclencher l'alerte**. Une
+  // coupure totale de la base restait donc muette côté Slack, ce qui est le
+  // contraire de ce qu'on attend d'une alerte.
+  try {
+    const resume = await synchroniser({
+      base: obtenirBase(),
+      codeClubFfbb: CODE_CLUB_FFBB,
+      declencheur: declencheurDe(requete),
+      alerter: alerterEquipe,
+    });
 
-  return reponseJson(corpsDeReponse(resume), resume.statut === "echec" ? 500 : 200);
+    return reponseJson(corpsDeReponse(resume), resume.statut === "echec" ? 500 : 200);
+  } catch (erreur) {
+    const message = erreur instanceof Error ? erreur.message : String(erreur);
+    console.error(`[cron synchronisation-ffbb] panne avant journalisation : ${message}`);
+
+    // On n'invente pas de faux résumé pour faire semblant d'avoir un journal :
+    // `alerterPanne` dit ce qu'on sait, et rien de plus. Elle ne rejette jamais,
+    // donc elle ne peut pas masquer la panne d'origine.
+    await alerterPanne(message);
+
+    return reponseJson(
+      {
+        statut: "echec",
+        journalId: null,
+        messageErreur: assainirMessage(message),
+      },
+      500,
+    );
+  }
 }
 
 /** Vercel Cron et GitHub Actions appellent en GET. */

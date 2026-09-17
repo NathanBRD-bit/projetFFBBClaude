@@ -73,8 +73,16 @@ if (lecture.rencontres.length === 0) {
   );
 }
 
-const organisme = await client.obtenirOrganisme(CODE_CLUB);
-console.info(`Fiche club : ${organisme.nom} — engagements « ${organisme.engagements_codes} ».`);
+// Constat de review : cet appel n'était pas protégé. S'il levait — précisément
+// la dérive que ce job traque — le processus mourait avant d'afficher les
+// problèmes déjà collectés, et la première étape de la procédure décrite dans le
+// workflow (« lire la liste des champs fautifs dans les logs ») n'avait rien à lire.
+try {
+  const organisme = await client.obtenirOrganisme(CODE_CLUB);
+  console.info(`Fiche club : ${organisme.nom} — engagements « ${organisme.engagements_codes} ».`);
+} catch (cause) {
+  problemes.push(`Fiche club : ${cause instanceof Error ? cause.message : String(cause)}`);
+}
 
 if (problemes.length > 0) {
   // `console.error` puis `exit(1)` : le job doit rougir et dire quoi regarder.

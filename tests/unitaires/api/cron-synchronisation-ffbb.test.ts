@@ -25,8 +25,14 @@ const synchroniserSimule = vi.hoisted(() =>
 );
 const obtenirBaseSimule = vi.hoisted(() => vi.fn(() => BASE_FACTICE));
 
+const alerterPanneSimulee = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+
 vi.mock("@/infrastructure/bdd/client", () => ({ obtenirBase: obtenirBaseSimule }));
 vi.mock("@/infrastructure/ffbb/synchronisation", () => ({ synchroniser: synchroniserSimule }));
+vi.mock("@/infrastructure/ffbb/alerte", () => ({
+  alerterEquipe: vi.fn(() => Promise.resolve()),
+  alerterPanne: alerterPanneSimulee,
+}));
 
 const { GET, POST } = await import("@/app/api/cron/synchronisation-ffbb/route");
 
@@ -277,5 +283,82 @@ describe("route /api/cron/synchronisation-ffbb", () => {
     const corps = (await (await GET(authentifiee())).json()) as { messageErreur: string };
 
     expect(corps.messageErreur).toHaveLength(500);
+  });
+});
+
+/**
+ * Constat de review : `synchroniser()` ouvre sa ligne de journal **avant** son
+ * propre `try`, et `obtenirBase()` lève si `DATABASE_URL` manque. La panne qui
+ * échappait à la route était donc la plus grave — base injoignable — et elle ne
+ * déclenchait aucune alerte.
+ */
+describe("panne survenue avant l'ouverture du journal", () => {
+  beforeEach(() => {
+    vi.stubEnv("CRON_SECRET", SECRET);
+    synchroniserSimule.mockReset();
+    synchroniserSimule.mockResolvedValue(resume("succes"));
+    obtenirBaseSimule.mockClear();
+    alerterPanneSimulee.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  function requeteAutorisee(): Request {
+    return new Request(URL_ROUTE, { headers: { authorization: `Bearer ${SECRET}` } });
+  }
+
+  it("répond 500 en JSON au lieu de laisser Next rendre son erreur", async () => {
+    obtenirBaseSimule.mockImplementationOnce(() => {
+      throw new Error("DATABASE_URL absente de l'environnement");
+    });
+    const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const reponse = await GET(requeteAutorisee());
+
+    expect(reponse.status).toBe(500);
+    expect(reponse.headers.get("cache-control")).toBe("no-store");
+    await expect(reponse.json()).resolves.toMatchObject({ statut: "echec", journalId: null });
+    espion.mockRestore();
+  });
+
+  it("déclenche l'alerte, qui restait muette sur une coupure totale de la base", async () => {
+    obtenirBaseSimule.mockImplementationOnce(() => {
+      throw new Error("connexion refusée");
+    });
+    const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await GET(requeteAutorisee());
+
+    expect(alerterPanneSimulee).toHaveBeenCalledWith("connexion refusée");
+    espion.mockRestore();
+  });
+
+  it("masque le nom d'hôte de la base dans la réponse", async () => {
+    obtenirBaseSimule.mockImplementationOnce(() => {
+      throw new Error("getaddrinfo ENOTFOUND ep-cool-123.eu-central-1.aws.neon.tech");
+    });
+    const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const reponse = await GET(requeteAutorisee());
+    const corps = (await reponse.json()) as { messageErreur: string };
+
+    expect(corps.messageErreur).not.toContain("neon.tech");
+    espion.mockRestore();
+  });
+
+  it("supporte un rejet qui n'est pas une Error", async () => {
+    obtenirBaseSimule.mockImplementationOnce(() => {
+      throw "panne brute";
+    });
+    const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const reponse = await GET(requeteAutorisee());
+
+    expect(reponse.status).toBe(500);
+    expect(alerterPanneSimulee).toHaveBeenCalledWith("panne brute");
+    espion.mockRestore();
   });
 });
