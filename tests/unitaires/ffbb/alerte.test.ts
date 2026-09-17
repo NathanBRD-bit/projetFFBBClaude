@@ -262,6 +262,10 @@ describe("alerte de panne avant journalisation", () => {
 
     await creerAlertePanne({
       env: { [NOM_VARIABLE_WEBHOOK]: URL_WEBHOOK },
+      // Même raison que ci-dessus : on vérifie que l'alerte encaisse un rejet
+      // qui n'est pas une `Error`, ce qu'aucun code correct ne produit mais que
+      // `fetch` d'une bibliothèque tierce peut très bien faire.
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       envoyer: () => Promise.reject("panne brute"),
       journaliserErreur: (texte) => journal.push(texte),
     })(PANNE);

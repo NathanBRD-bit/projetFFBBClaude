@@ -351,6 +351,10 @@ describe("panne survenue avant l'ouverture du journal", () => {
 
   it("supporte un rejet qui n'est pas une Error", async () => {
     obtenirBaseSimule.mockImplementationOnce(() => {
+      // Ce test existe précisément pour prouver que la route survit à ce que la
+      // règle interdit : du code tiers peut lancer autre chose qu'une `Error`.
+      // La désactivation est donc locale et volontaire, pas un contournement.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw "panne brute";
     });
     const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
